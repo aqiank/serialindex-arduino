@@ -11,7 +11,7 @@ IO::IO()
 	capacity  = CAPACITY;
 	keys      = new const char *[capacity];
 	types     = new Type[capacity];
-	values    = new void*[capacity];
+	values    = (Val *) malloc(sizeof(*values) * capacity);
 	functions = new Function[capacity];
 	buffer    = new char[BUFFERSIZE];
 	ibuffer   = 0;
@@ -21,6 +21,13 @@ IO::IO()
 
 IO::~IO()
 {
+	size_t i;
+
+	for (i = 0; i < capacity; i++) {
+		if (values[i].before)
+			free(values[i].before); // used free() here because delete requires typed variable
+	}
+
 	delete buffer;
 	delete types;
 	delete keys;
@@ -552,21 +559,21 @@ void IO::eval(char *s, char *e)
 
 void IO::eval_int(char *s, char *e)
 {
-	int *value = (int *) values[ikey];
+	int *value = (int *) values[ikey].now;
 
 	*value = atois(s, e);
 }
 
 void IO::eval_float(char *s, char *e)
 {
-	float *value = (float *) values[ikey];
+	float *value = (float *) values[ikey].now;
 	
 	*value = strtods(s, e, NULL);
 }
 
 void IO::eval_string(char *s, char *e)
 {
-	char *value = (char *) values[ikey];
+	char *value = (char *) values[ikey].now;
 
 	if (*s == '\'' || *s == '"') {
 		s += 1;
@@ -593,7 +600,7 @@ void IO::eval_int_array(char *s, char *e)
 
 void IO::eval_int_array_nth(char *s, char *e, size_t i)
 {
-	int *array = (int *) values[ikey];
+	int *array = (int *) values[ikey].now;
 
 	if (*s == ']' && *e == ']')
 		return;
@@ -617,7 +624,7 @@ void IO::eval_float_array(char *s, char *e)
 
 void IO::eval_float_array_nth(char *s, char *e, size_t i)
 {
-	float *array = (float *) values[ikey];
+	float *array = (float *) values[ikey].now;
 
 	if (*s == ']' && *e == ']')
 		return;
@@ -656,7 +663,7 @@ void IO::eval_float_slice_array(char *s, char *e)
 void IO::eval_int_slice(char *s, char *e)
 {
 	char *p, *dp = 0, *rdp = 0;
-	int *array = (int *) values[ikey];
+	int *array = (int *) values[ikey].now;
 	int value = 0;
 	size_t start = 0, end = 0;
 	size_t i;
@@ -688,7 +695,7 @@ void IO::eval_int_slice(char *s, char *e)
 void IO::eval_float_slice(char *s, char *e)
 {
 	char *p, *dp = 0, *rdp = 0;
-	float *array = (float *) values[ikey];
+	float *array = (float *) values[ikey].now;
 	float value = 0;
 	size_t start = 0, end = 0;
 	size_t i;

@@ -10,6 +10,11 @@
 
 typedef void (*Function)(void);
 
+struct Val {
+	void * now;
+	void * before;
+};
+
 enum Context {
 	Key,
 	Value,
@@ -113,7 +118,7 @@ public:
 private:
 	const char **  keys;
 	Type *         types;
-	void **        values;
+	Val *          values;
 	Function *     functions;
 	char *         buffer;
 	Context        context;
@@ -142,7 +147,7 @@ IO& IO::add(const char *k, T &v, Type t)
 
 	types[nkeys] = t;
 	keys[nkeys] = k;
-	values[nkeys] = &v;
+	values[nkeys] = Val { now: &v, before: 0 };
 	functions[nkeys] = 0;
 	nkeys++;
 
