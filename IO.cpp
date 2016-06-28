@@ -87,13 +87,12 @@ size_t IO::available()
 	return 0;
 }
 
-char IO::write()
+char IO::read()
 {
-	// TODO
 	return 0;
 }
 
-void IO::read(char c)
+void IO::write(char c)
 {
 	buffer[ibuffer++] = c;
 
@@ -104,56 +103,56 @@ void IO::read(char c)
 
 	switch (context) {
 	case Context::Key:
-		read_key(c);
+		write_key(c);
 		break;
 
 	case Context::Value:
-		read_value(c);
+		write_value(c);
 		break;
 
 	case Context::IntValue:
-		read_int(c);
+		write_int(c);
 		break;
 
 	case Context::FloatValue:
-		read_float(c);
+		write_float(c);
 		break;
 
 	case Context::StringValue:
-		read_string(c);
+		write_string(c);
 		break;
 
 	case Context::ArrayValue:
-		read_array(c);
+		write_array(c);
 		break;
 
 	case Context::IntArrayValue:
-		read_int_array(c);
+		write_int_array(c);
 		break;
 
 	case Context::FloatArrayValue:
-		read_float_array(c);
+		write_float_array(c);
 		break;
 
 	case Context::SliceArrayValue:
-		read_slice_array(c);
+		write_slice_array(c);
 		break;
 
 	case Context::IntSliceArrayValue:
-		read_int_slice_array(c);
+		write_int_slice_array(c);
 		break;
 
 	case Context::FloatSliceArrayValue:
-		read_float_slice_array(c);
+		write_float_slice_array(c);
 		break;
 
 	case Context::Skip:
-		read_skip(c);
+		write_skip(c);
 		break;
 	}
 }
 
-void IO::read_key(char c)
+void IO::write_key(char c)
 {
 	if (c == KV_DELIMITER) {
 		buffer[ibuffer - 1] = 0;
@@ -174,7 +173,7 @@ skip:
 	context = Context::Skip;
 }
 
-void IO::read_value(char c)
+void IO::write_value(char c)
 {
 	const Type type = types[ikey];
 
@@ -215,7 +214,7 @@ skip:
 	return;
 }
 
-void IO::read_int(char c)
+void IO::write_int(char c)
 {
 	if (is_eol()) {
 		if (validate_int(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
@@ -227,7 +226,7 @@ void IO::read_int(char c)
 	}
 }
 
-void IO::read_float(char c)
+void IO::write_float(char c)
 {
 	if (is_eol()) {
 		if (validate_float(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
@@ -239,7 +238,7 @@ void IO::read_float(char c)
 	}
 }
 
-void IO::read_string(char c)
+void IO::write_string(char c)
 {
 	if (is_eol()) {
 		switch (validate_string(&buffer[0], &buffer[ibuffer - EOL_LEN])) {
@@ -255,7 +254,7 @@ void IO::read_string(char c)
 	}
 }
 
-void IO::read_array(char c)
+void IO::write_array(char c)
 {
 	const Type type = types[ikey];
 
@@ -277,7 +276,7 @@ skip:
 	}
 }
 
-void IO::read_int_array(char c)
+void IO::write_int_array(char c)
 {
 	if (c == ']') {
 		if (validate_int_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
@@ -289,7 +288,7 @@ void IO::read_int_array(char c)
 	}
 }
 
-void IO::read_float_array(char c)
+void IO::write_float_array(char c)
 {
 	if (c == ']') {
 		if (validate_float_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
@@ -301,7 +300,7 @@ void IO::read_float_array(char c)
 	}
 }
 
-void IO::read_slice_array(char c)
+void IO::write_slice_array(char c)
 {
 	const Type type = types[ikey];
 
@@ -323,7 +322,7 @@ skip:
 	}
 }
 
-void IO::read_int_slice_array(char c)
+void IO::write_int_slice_array(char c)
 {
 	if (c == '}') {
 		if (validate_int_slice_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
@@ -333,7 +332,7 @@ void IO::read_int_slice_array(char c)
 	}
 }
 
-void IO::read_float_slice_array(char c)
+void IO::write_float_slice_array(char c)
 {
 	if (c == '}') {
 		if (validate_float_slice_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
@@ -343,7 +342,7 @@ void IO::read_float_slice_array(char c)
 	}
 }
 
-void IO::read_skip(char c)
+void IO::write_skip(char c)
 {
 	if (!is_eol())
 		return;

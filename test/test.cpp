@@ -75,5 +75,5 @@ int main()
 	io.add("floats", _floats).listen("floats", &floats_cb);
 
 	for (i = 0; i < LEN(sample_txt); i++)
-		io.read(sample_txt[i]);
+		io.write(sample_txt[i]);
 }

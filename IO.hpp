@@ -76,21 +76,21 @@ public:
 
 	size_t         available();
 
-	char           write();
+	char           read();
 
-	void           read(char);
-	void           read_key(char c);
-	void           read_value(char c);
-	void           read_int(char c);
-	void           read_float(char c);
-	void           read_string(char c);
-	void           read_array(char c);
-	void           read_int_array(char c);
-	void           read_float_array(char c);
-	void           read_slice_array(char c);
-	void           read_int_slice_array(char c);
-	void           read_float_slice_array(char c);
-	void           read_skip(char c);
+	void           write(char);
+	void           write_key(char c);
+	void           write_value(char c);
+	void           write_int(char c);
+	void           write_float(char c);
+	void           write_string(char c);
+	void           write_array(char c);
+	void           write_int_array(char c);
+	void           write_float_array(char c);
+	void           write_slice_array(char c);
+	void           write_int_slice_array(char c);
+	void           write_float_slice_array(char c);
+	void           write_skip(char c);
 
 	ValidateResult validate_int(char *s, char *e);
 	ValidateResult validate_float(char *s, char *e);
