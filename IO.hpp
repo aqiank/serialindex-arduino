@@ -19,6 +19,7 @@ struct Val {
 	void *    now;
 	void *    before;
 	Tolerance tolerance;
+	size_t    length;
 };
 
 enum Context {
@@ -68,9 +69,15 @@ public:
 	template<int N>
 	IO&            add(const char *k, int (&v)[N]);
 
+	template<int N>
+	IO&            add(const char *k, int (&v)[N], int tolerance);
+
 	// float-array
 	template<int N>
 	IO&            add(const char *k, float (&v)[N]);
+
+	template<int N>
+	IO&            add(const char *k, float (&v)[N], float tolerance);
 
 	// string
 	template<int N>
@@ -85,6 +92,9 @@ public:
 	char           read();
 	bool           read_int();
 	bool           read_float();
+	bool           read_int_array();
+	bool           read_float_array();
+	bool           read_string();
 
 	void           write(char);
 	void           write_key(char c);
@@ -145,6 +155,9 @@ private:
 
 	template<typename T>
 	IO&            add(const char *k, T &v, Type t, T tolerance);
+
+	template<typename T, int N>
+	IO&            add(const char *k, T (&v)[N], Type t, T tolerance);
 };
 
 // generic
@@ -187,25 +200,57 @@ out:
 	return *this; 
 }
 
+// generic
+template<typename T, int N>
+IO& IO::add(const char *k, T (&v)[N], Type t, T tolerance)
+{
+	if (!k || nkeys >= capacity)
+		goto out;
+
+	if (find_key(k) < SIZE_MAX)
+		goto out;
+
+	types[nkeys] = t;
+	keys[nkeys] = k;
+	values[nkeys] = Val { now: &v, before: 0, tolerance: { 0 }, length: N };
+	functions[nkeys] = 0;
+	nkeys++;
+
+out:
+	return *this;
+}
+
 // int-array
 template<int N>
 IO& IO::add(const char *k, int (&v)[N])
 {
-	return add(k, v, Type::IntArray); 
+	return add(k, v, Type::IntArray, 0);
+}
+
+template<int N>
+IO& IO::add(const char *k, int (&v)[N], int tolerance)
+{
+	return add(k, v, Type::IntArray, 0);
 }
 
 // float-array
 template<int N>
 IO& IO::add(const char *k, float (&v)[N]) 
 {
-	return add(k, v, Type::FloatArray); 
+	return add(k, v, Type::FloatArray, 0.0f);
+}
+
+template<int N>
+IO& IO::add(const char *k, float (&v)[N], float tolerance)
+{
+	return add(k, v, Type::FloatArray, 0.0f);
 }
 
 // string
 template<int N>
 IO& IO::add(const char *k, char (&v)[N]) 
 {
-	return add(k, v, Type::String); 
+	return add(k, v, Type::String);
 }
 
 #endif

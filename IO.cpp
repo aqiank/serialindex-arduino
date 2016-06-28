@@ -103,6 +103,21 @@ size_t IO::available()
 				goto out;
 			break;
 
+		case IntArray:
+			if (read_int_array())
+				goto out;
+			break;
+
+		case FloatArray:
+			if (read_float_array())
+				goto out;
+			break;
+
+		case String:
+			if (read_string())
+				goto out;
+			break;
+
 		default:
 			break;
 		}
@@ -159,6 +174,88 @@ bool IO::read_float()
 			before = (float *) malloc(sizeof(*before));
 
 		*before = *now;
+
+		return true;
+	}
+
+	return false;
+}
+
+bool IO::read_int_array()
+{
+	const size_t length = values[ikey].length;
+	const int tolerance = values[ikey].tolerance.f;
+	const int *now      = (int *) values[ikey].now;
+	int *before         = (int *) values[ikey].before;
+	bool changed        = false;
+	char *p =  buffer, *q = buffer + BUFFERSIZE;
+	size_t i;
+
+	for (i = 0; i < length; i++) {
+		if (*(now + i) - *(before + i) > tolerance) {
+			changed = true;
+			break;
+		}
+	}
+
+	if (changed) {
+		p += snprintf(p, q - p, "%s%c[", keys[ikey], KV_DELIMITER);
+
+		for (i = 0; i < length; i++) {
+			p += snprintf(p, q - p, "%d,", now[i]);
+			before[i] = now[i];
+		}
+
+		p += snprintf(p, q - p, "]%s", EOL);
+	}
+
+	return changed;
+}
+
+bool IO::read_float_array()
+{
+	const size_t length   = values[ikey].length;
+	const float tolerance = values[ikey].tolerance.f;
+	const float *now      = (float *) values[ikey].now;
+	float *before         = (float *) values[ikey].before;
+	bool changed          = false;
+	char *p =  buffer, *q = buffer + BUFFERSIZE;
+	size_t i;
+
+	for (i = 0; i < length; i++) {
+		if (*(now + i) - *(before + i) > tolerance) {
+			changed = true;
+			break;
+		}
+	}
+
+	if (changed) {
+		p += snprintf(p, q - p, "%s%c[", keys[ikey], KV_DELIMITER);
+
+		for (i = 0; i < length; i++) {
+			p += snprintf(p, q - p, "%f,", now[i]);
+			before[i] = now[i];
+		}
+
+		p += snprintf(p, q - p, "]%s", EOL);
+	}
+
+	return changed;
+}
+
+bool IO::read_string()
+{
+	const char *now      = (char *) values[ikey].now;
+	char *before         = (char *) values[ikey].before;
+
+	if (strcmp(now, before) != 0) {
+		snprintf(buffer, BUFFERSIZE, "%s%c%d%s", keys[ikey], KV_DELIMITER, *now, EOL);
+		nbuffer = strlen(buffer);
+
+		if (before)
+			before = strcpy(before, now);
+		else
+			before = strdup(now);
 
 		return true;
 	}
