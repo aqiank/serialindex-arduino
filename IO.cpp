@@ -7,31 +7,34 @@ static const size_t EOL_LEN                     = LEN(EOL) - 1;
 
 IO::IO()
 {
-	context   = Context::Key;
-	capacity  = CAPACITY;
-	keys      = new const char *[capacity];
-	types     = new Type[capacity];
-	values    = (Val *) malloc(sizeof(*values) * capacity);
-	functions = new Function[capacity];
-	buffer    = new char[BUFFERSIZE];
-	ibuffer   = 0;
-	ikey      = SIZE_MAX;
-	nkeys     = 0;
+	values     = (Val *) malloc(sizeof(*values) * capacity);
+	memset(values, 0, sizeof(*values) * capacity);
+
+	context    = Context::Key;
+	capacity   = CAPACITY;
+	keys       = new const char *[capacity];
+	types      = new Type[capacity];
+	functions  = new Function[capacity];
+	buffer     = new char[BUFFERSIZE];
+	ibuffer    = 0;
+	nbuffer    = 0;
+	ikey       = SIZE_MAX;
+	nkeys      = 0;
 }
 
 IO::~IO()
 {
 	size_t i;
 
-	for (i = 0; i < capacity; i++) {
+	for (i = 0; i < nkeys; i++) {
 		if (values[i].before)
 			free(values[i].before); // used free() here because delete requires typed variable
 	}
+	free(values);
 
 	delete buffer;
 	delete types;
 	delete keys;
-	delete values;
 	delete functions;
 }
 
@@ -83,13 +86,84 @@ out:
 
 size_t IO::available()
 {
-	// TODO
-	return 0;
+	while (ikey < nkeys) {
+		if (!values[ikey].tolerance.i && !values[ikey].before)
+			continue;
+
+		ibuffer = 0;
+
+		switch (types[ikey]) {
+		case Int:
+			if (read_int())
+				goto out;
+			break;
+
+		case Float:
+			if (read_float())
+				goto out;
+			break;
+
+		default:
+			break;
+		}
+
+		ikey++;
+	}
+
+out:
+	return nbuffer - ibuffer;
 }
 
 char IO::read()
 {
-	return 0;
+	if (ibuffer >= nbuffer) {
+		ikey = 0;
+		return 0;
+	}
+
+	return buffer[ibuffer++];
+}
+
+bool IO::read_int()
+{
+	const int tolerance = values[ikey].tolerance.i;
+	const int *now      = (int *) values[ikey].now;
+	int *before         = (int *) values[ikey].before;
+
+	if (*now - *before > tolerance) {
+		snprintf(buffer, BUFFERSIZE, "%s%c%d%s", keys[ikey], KV_DELIMITER, *now, EOL);
+		nbuffer = strlen(buffer);
+
+		if (!before)
+			before = (int *) malloc(sizeof(*before));
+
+		*before = *now;
+
+		return true;
+	}
+
+	return false;
+}
+
+bool IO::read_float()
+{
+	const float tolerance = values[ikey].tolerance.f;
+	const float *now      = (float *) values[ikey].now;
+	float *before         = (float *) values[ikey].before;
+
+	if (*now - *before > tolerance) {
+		snprintf(buffer, BUFFERSIZE, "%s%c%f%s", keys[ikey], KV_DELIMITER, *now, EOL);
+		nbuffer = strlen(buffer);
+
+		if (!before)
+			before = (float *) malloc(sizeof(*before));
+
+		*before = *now;
+
+		return true;
+	}
+
+	return false;
 }
 
 void IO::write(char c)
@@ -742,6 +816,7 @@ void IO::reset_context(void)
 {
 	context = Context::Key;
 	ibuffer = 0;
+	ikey = 0;
 }
 
 size_t IO::find_key(const char *s) 

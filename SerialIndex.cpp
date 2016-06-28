@@ -51,13 +51,17 @@ SerialIndex& SerialIndex::io(const char *k, bool theIn, bool theOut)
 
 SerialIndex& SerialIndex::in(char b) 
 {
-	// TODO
+	while (serial.available())
+		IO::write(serial.read());
+
 	return *this;
 }
 
 SerialIndex& SerialIndex::out()
 {
-	// TODO
+	while (IO::available())
+		Serial.write(IO::read());
+
 	return *this;
 }
 
@@ -84,22 +88,10 @@ SerialIndex& SerialIndex::write(bool b)
 void SerialIndex::update(void)
 {
 	if (mode & Mode::Read != 0)
-		read();
+		in();
 
 	if (mode & Mode::Write != 0)
-		write();
-}
-
-void SerialIndex::read()
-{
-	while (serial.available())
-		IO::write(serial.read());
-}
-
-void SerialIndex::write()
-{
-	while (IO::available())
-		Serial.write(IO::read());
+		out();
 }
 
 SerialIndex Index(Serial);

@@ -10,9 +10,15 @@
 
 typedef void (*Function)(void);
 
+union Tolerance {
+	int   i;
+	float f;
+};
+
 struct Val {
-	void * now;
-	void * before;
+	void *    now;
+	void *    before;
+	Tolerance tolerance;
 };
 
 enum Context {
@@ -77,6 +83,8 @@ public:
 	size_t         available();
 
 	char           read();
+	bool           read_int();
+	bool           read_float();
 
 	void           write(char);
 	void           write_key(char c);
@@ -123,6 +131,7 @@ private:
 	char *         buffer;
 	Context        context;
 	size_t         ibuffer;
+	size_t         nbuffer;
 	size_t         ikey;
 	size_t         nkeys;
 	size_t         capacity;
@@ -131,12 +140,15 @@ private:
 	void           reset_context(void);
 	bool           is_eol();
 
-	template<class T>
+	template<typename T>
 	IO&            add(const char *k, T &v, Type t);
+
+	template<typename T>
+	IO&            add(const char *k, T &v, Type t, T tolerance);
 };
 
 // generic
-template<class T>
+template<typename T>
 IO& IO::add(const char *k, T &v, Type t)
 {
 	if (!k || nkeys >= capacity)
@@ -147,7 +159,27 @@ IO& IO::add(const char *k, T &v, Type t)
 
 	types[nkeys] = t;
 	keys[nkeys] = k;
-	values[nkeys] = Val { now: &v, before: 0 };
+	values[nkeys] = Val { now: &v, before: 0, tolerance: { 0 } };
+	functions[nkeys] = 0;
+	nkeys++;
+
+out:
+	return *this;
+}
+
+// generic
+template<typename T>
+IO& IO::add(const char *k, T &v, Type t, T tolerance)
+{
+	if (!k || nkeys >= capacity)
+		goto out;
+
+	if (find_key(k) < SIZE_MAX)
+		goto out;
+
+	types[nkeys] = t;
+	keys[nkeys] = k;
+	values[nkeys] = Val { now: &v, before: 0, tolerance: { 0 } };
 	functions[nkeys] = 0;
 	nkeys++;
 
