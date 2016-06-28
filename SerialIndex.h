@@ -11,7 +11,7 @@ enum Mode {
 class SerialIndex : public IO
 {
 public:
-	SerialIndex(Serial_ &s);
+	SerialIndex(Stream &s);
 	~SerialIndex();
 
 	SerialIndex&   ping(char *k);
@@ -22,7 +22,7 @@ public:
 	SerialIndex&   begin(long, int, int);
 
 	SerialIndex&   io(const char *k, bool theIn, bool theOut);
-	SerialIndex&   in(char b);
+	SerialIndex&   in();
 	SerialIndex&   out();
 
 	SerialIndex&   read(bool);
@@ -33,7 +33,7 @@ public:
 	void           write();
 
 private:
-	Serial_&       serial;
+	Stream&        serial;
 	int            mode;
 };
 

@@ -1,7 +1,7 @@
 #include "SerialIndex.h"
 #include "IO.hpp"
 
-SerialIndex::SerialIndex(Serial_ &s) :
+SerialIndex::SerialIndex(Stream &s) :
 	serial(s)
 {
 	begin();
@@ -36,7 +36,8 @@ SerialIndex& SerialIndex::begin(long theBaudrate, int theCapacity)
 
 SerialIndex& SerialIndex::begin(long theBaudrate, int theCapacity, int theBufferSize)
 {
-	serial.begin(theBaudrate);
+	Serial.begin(theBaudrate);
+	serial = Serial;
 
 	// TODO
 
@@ -49,7 +50,7 @@ SerialIndex& SerialIndex::io(const char *k, bool theIn, bool theOut)
 	return *this;
 }
 
-SerialIndex& SerialIndex::in(char b) 
+SerialIndex& SerialIndex::in()
 {
 	while (serial.available())
 		IO::write(serial.read());
