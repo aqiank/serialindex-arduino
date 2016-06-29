@@ -13,6 +13,7 @@
 	#include <stdio.h>
 	#include <stdint.h>
 	#include <ctype.h>
+	#include <math.h>
 #endif
 
 #define LEN(x) (sizeof(x) / sizeof(x[0]))

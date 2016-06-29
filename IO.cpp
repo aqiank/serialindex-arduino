@@ -8,7 +8,7 @@ static const size_t EOL_LEN                     = LEN(EOL) - 1;
 IO::IO()
 {
 	context    = Context::Key;
-	capacity   = CAPACITY;
+	capacity   = CAPACITY == SIZE_MAX ? SIZE_MAX - 1 : CAPACITY;
 	keys       = new const char *[capacity];
 	types      = new Type[capacity];
 	functions  = new Function[capacity];
@@ -26,10 +26,9 @@ IO::~IO()
 {
 	size_t i;
 
-	for (i = 0; i < nkeys; i++) {
-		if (values[i].before)
-			free(values[i].before); // used free() here because delete requires typed variable
-	}
+	for (i = 0; i < nkeys; i++)
+		free(values[i].before); // used free() here because delete requires typed variable
+
 	free(values);
 
 	delete buffer;
@@ -41,7 +40,8 @@ IO::~IO()
 // int
 IO& IO::add(const char *k, int &v, int theTolerance) 
 {
-	return add(k, v, Type::Int);
+	Tolerance tolerance = { i: theTolerance };
+	return add(k, v, Type::Int, tolerance);
 }
 
 IO& IO::add(const char *k, int &v) 
@@ -84,49 +84,55 @@ out:
 	return *this; 
 }
 
-size_t IO::available()
+bool IO::check_value_updates()
 {
-	while (ikey < nkeys && ikey < SIZE_MAX) {
-		if (!values[ikey].tolerance.i && !values[ikey].before)
-			continue;
+	if (ikey == SIZE_MAX)
+		ikey = 0;
 
-		ibuffer = 0;
+	if (nkeys == 0 || ikey >= nkeys)
+		return false;
 
-		switch (types[ikey]) {
-		case Int:
-			if (read_int())
-				goto out;
-			break;
+	ibuffer = 0;
 
-		case Float:
-			if (read_float())
-				goto out;
-			break;
+	switch (types[ikey]) {
+	case Type::Int:
+		read_int();
+		break;
 
-		case IntArray:
-			if (read_int_array())
-				goto out;
-			break;
+	case Type::Float:
+		read_float();
+		break;
 
-		case FloatArray:
-			if (read_float_array())
-				goto out;
-			break;
+	case Type::IntArray:
+		read_int_array();
+		break;
 
-		case String:
-			if (read_string())
-				goto out;
-			break;
+	case Type::FloatArray:
+		read_float_array();
+		break;
 
-		default:
-			break;
-		}
+	case Type::String:
+		read_string();
+		break;
 
-		ikey++;
+	default:
+		break;
 	}
 
-out:
-	return nbuffer - ibuffer;
+	ikey++;
+	return true;
+}
+
+size_t IO::available()
+{
+	size_t d = nbuffer - ibuffer;
+
+	if (d == 0) {
+		nbuffer = 0;
+		ibuffer = 0;
+	}
+
+	return d;
 }
 
 char IO::read()
@@ -145,15 +151,10 @@ bool IO::read_int()
 	const int *now      = (int *) values[ikey].now;
 	int *before         = (int *) values[ikey].before;
 
-	if (*now - *before > tolerance) {
+	if (abs(*now - *before) >= tolerance) {
 		snprintf(buffer, BUFFERSIZE, "%s%c%d%s", keys[ikey], KV_DELIMITER, *now, EOL);
 		nbuffer = strlen(buffer);
-
-		if (!before)
-			before = (int *) malloc(sizeof(*before));
-
 		*before = *now;
-
 		return true;
 	}
 
@@ -166,12 +167,28 @@ bool IO::read_float()
 	const float *now      = (float *) values[ikey].now;
 	float *before         = (float *) values[ikey].before;
 
-	if (*now - *before > tolerance) {
-		snprintf(buffer, BUFFERSIZE, "%s%c%f%s", keys[ikey], KV_DELIMITER, *now, EOL);
-		nbuffer = strlen(buffer);
+	if (fabs(*now - *before) >= tolerance) {
 
-		if (!before)
-			before = (float *) malloc(sizeof(*before));
+#if defined(__AVR_ATmega8__)    || \
+    defined(__AVR_ATmega8U2__)  || \
+    defined(__AVR_ATmega168__)  || \
+    defined(__AVR_ATmega32U4__) || \
+    defined(__AVR_ATmega328__)  || \
+    defined(__AVR_ATmega328P__) || \
+    defined(__AVR_ATmega1280__) || \
+    defined(__AVR_ATmega2560__)
+
+		// Some AVR processors don't support float standard C formatting, so we have to use AVR-specific stuff
+
+		char now_str[9];
+		dtostrf(*now, 8, 6, now_str);
+		snprintf(buffer, BUFFERSIZE, "%s%c%s%s", keys[ikey], KV_DELIMITER, now_str, EOL);
+
+#else
+		snprintf(buffer, BUFFERSIZE, "%s%c%f%s", keys[ikey], KV_DELIMITER, *now, EOL);
+#endif
+
+		nbuffer = strlen(buffer);
 
 		*before = *now;
 
@@ -192,7 +209,7 @@ bool IO::read_int_array()
 	size_t i;
 
 	for (i = 0; i < length; i++) {
-		if (*(now + i) - *(before + i) > tolerance) {
+		if (abs(*(now + i) - *(before + i)) >= tolerance) {
 			changed = true;
 			break;
 		}
@@ -207,6 +224,8 @@ bool IO::read_int_array()
 		}
 
 		p += snprintf(p, q - p, "]%s", EOL);
+
+		nbuffer = strlen(buffer);
 	}
 
 	return changed;
@@ -223,7 +242,7 @@ bool IO::read_float_array()
 	size_t i;
 
 	for (i = 0; i < length; i++) {
-		if (*(now + i) - *(before + i) > tolerance) {
+		if (fabs(*(now + i) - *(before + i)) >= tolerance) {
 			changed = true;
 			break;
 		}
@@ -233,11 +252,32 @@ bool IO::read_float_array()
 		p += snprintf(p, q - p, "%s%c[", keys[ikey], KV_DELIMITER);
 
 		for (i = 0; i < length; i++) {
+
+#if defined(__AVR_ATmega8__)    || \
+    defined(__AVR_ATmega8U2__)  || \
+    defined(__AVR_ATmega168__)  || \
+    defined(__AVR_ATmega32U4__) || \
+    defined(__AVR_ATmega328__)  || \
+    defined(__AVR_ATmega328P__) || \
+    defined(__AVR_ATmega1280__) || \
+    defined(__AVR_ATmega2560__)
+
+			// Some AVR processors don't support float standard C formatting, so we have to use AVR-specific stuff
+
+			char now_str[9];
+			dtostrf(now[i], 8, 6, now_str);
+			p += snprintf(p, q - p, "%s,", now_str);
+
+#else
 			p += snprintf(p, q - p, "%f,", now[i]);
+#endif
+
 			before[i] = now[i];
 		}
 
 		p += snprintf(p, q - p, "]%s", EOL);
+
+		nbuffer = strlen(buffer);
 	}
 
 	return changed;
@@ -245,18 +285,13 @@ bool IO::read_float_array()
 
 bool IO::read_string()
 {
-	const char *now      = (char *) values[ikey].now;
-	char *before         = (char *) values[ikey].before;
+	const char *now     = (char *) values[ikey].now;
+	char *before        = (char *) values[ikey].before;
 
 	if (strcmp(now, before) != 0) {
-		snprintf(buffer, BUFFERSIZE, "%s%c%d%s", keys[ikey], KV_DELIMITER, *now, EOL);
+		snprintf(buffer, BUFFERSIZE, "%s%c%s%s", keys[ikey], KV_DELIMITER, now, EOL);
+		strcpy(before, now);
 		nbuffer = strlen(buffer);
-
-		if (before)
-			before = strcpy(before, now);
-		else
-			before = strdup(now);
-
 		return true;
 	}
 
@@ -729,21 +764,24 @@ void IO::eval(char *s, char *e)
 
 void IO::eval_int(char *s, char *e)
 {
-	int *value = (int *) values[ikey].now;
+	int *now = (int *) values[ikey].now;
+	int *before = (int *) values[ikey].before;
 
-	*value = atois(s, e);
+	*before = *now = atois(s, e);
 }
 
 void IO::eval_float(char *s, char *e)
 {
-	float *value = (float *) values[ikey].now;
+	float *now = (float *) values[ikey].now;
+	float *before = (float *) values[ikey].before;
 	
-	*value = strtods(s, e, NULL);
+	*before = *now = strtods(s, e, NULL);
 }
 
 void IO::eval_string(char *s, char *e)
 {
-	char *value = (char *) values[ikey].now;
+	char *now = (char *) values[ikey].now;
+	char *before = (char *) values[ikey].before;
 
 	if (*s == '\'' || *s == '"') {
 		s += 1;
@@ -751,7 +789,8 @@ void IO::eval_string(char *s, char *e)
 	}
 
 	*e = 0;
-	strcpy(value, s);
+	strcpy(now, s);
+	strcpy(before, s);
 }
 
 void IO::eval_int_array(char *s, char *e)
@@ -770,12 +809,13 @@ void IO::eval_int_array(char *s, char *e)
 
 void IO::eval_int_array_nth(char *s, char *e, size_t i)
 {
-	int *array = (int *) values[ikey].now;
+	int *now = (int *) values[ikey].now;
+	int *before = (int *) values[ikey].before;
 
 	if (*s == ']' && *e == ']')
 		return;
 
-	array[i] = atois(s, e);
+	before[i] = now[i] = atois(s, e);
 }
 
 void IO::eval_float_array(char *s, char *e)
@@ -794,12 +834,13 @@ void IO::eval_float_array(char *s, char *e)
 
 void IO::eval_float_array_nth(char *s, char *e, size_t i)
 {
-	float *array = (float *) values[ikey].now;
+	float *now = (float *) values[ikey].now;
+	float *before = (float *) values[ikey].before;
 
 	if (*s == ']' && *e == ']')
 		return;
 
-	array[i] = strtods(s, e, NULL);
+	before[i] = now[i] = strtods(s, e, NULL);
 }
 
 void IO::eval_int_slice_array(char *s, char *e)
@@ -833,7 +874,8 @@ void IO::eval_float_slice_array(char *s, char *e)
 void IO::eval_int_slice(char *s, char *e)
 {
 	char *p, *dp = 0, *rdp = 0;
-	int *array = (int *) values[ikey].now;
+	int *now = (int *) values[ikey].now;
+	int *before = (int *) values[ikey].before;
 	int value = 0;
 	size_t start = 0, end = 0;
 	size_t i;
@@ -859,13 +901,14 @@ void IO::eval_int_slice(char *s, char *e)
 	value = atois(dp + 1, e);
 
 	for (i = start; i < end; i++)
-		array[i] = value;
+		before[i] = now[i] = value;
 }
 
 void IO::eval_float_slice(char *s, char *e)
 {
 	char *p, *dp = 0, *rdp = 0;
-	float *array = (float *) values[ikey].now;
+	float *now = (float *) values[ikey].now;
+	float *before = (float *) values[ikey].before;
 	float value = 0;
 	size_t start = 0, end = 0;
 	size_t i;
@@ -891,7 +934,7 @@ void IO::eval_float_slice(char *s, char *e)
 	value = strtods(dp + 1, e, NULL);
 
 	for (i = start; i < end; i++)
-		array[i] = value;
+		before[i] = now[i] = value;
 }
 
 bool IO::is_eol()

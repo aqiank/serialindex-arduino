@@ -60,8 +60,12 @@ SerialIndex& SerialIndex::in()
 
 SerialIndex& SerialIndex::out()
 {
-	while (IO::available())
-		Serial.write(IO::read());
+	while (IO::check_value_updates()) {
+		while (IO::available())
+			Serial.write(IO::read());
+	}
+
+	IO::reset_context();
 
 	return *this;
 }

@@ -87,7 +87,9 @@ public:
 	// function
 	IO&            listen(const char *k, void (*v)(void));
 
+	bool           check_value_updates();
 	size_t         available();
+	void           reset_context(void);
 
 	char           read();
 	bool           read_int();
@@ -147,17 +149,16 @@ private:
 	size_t         capacity;
 
 	size_t         find_key(const char *s);
-	void           reset_context(void);
 	bool           is_eol();
 
 	template<typename T>
 	IO&            add(const char *k, T &v, Type t);
 
 	template<typename T>
-	IO&            add(const char *k, T &v, Type t, T tolerance);
+	IO&            add(const char *k, T &v, Type t, Tolerance tolerance);
 
 	template<typename T, int N>
-	IO&            add(const char *k, T (&v)[N], Type t, T tolerance);
+	IO&            add(const char *k, T (&v)[N], Type t, Tolerance tolerance);
 };
 
 // generic
@@ -172,7 +173,7 @@ IO& IO::add(const char *k, T &v, Type t)
 
 	types[nkeys] = t;
 	keys[nkeys] = k;
-	values[nkeys] = Val { now: &v, before: 0, tolerance: { 0 } };
+	values[nkeys] = Val { now: &v, before: malloc(sizeof(v)), tolerance: { 0 } };
 	functions[nkeys] = 0;
 	nkeys++;
 
@@ -182,7 +183,7 @@ out:
 
 // generic
 template<typename T>
-IO& IO::add(const char *k, T &v, Type t, T tolerance)
+IO& IO::add(const char *k, T &v, Type t, Tolerance tolerance)
 {
 	if (!k || nkeys >= capacity)
 		goto out;
@@ -192,7 +193,7 @@ IO& IO::add(const char *k, T &v, Type t, T tolerance)
 
 	types[nkeys] = t;
 	keys[nkeys] = k;
-	values[nkeys] = Val { now: &v, before: 0, tolerance: { 0 } };
+	values[nkeys] = Val { now: &v, before: malloc(sizeof(v)), tolerance: tolerance };
 	functions[nkeys] = 0;
 	nkeys++;
 
@@ -202,7 +203,7 @@ out:
 
 // generic
 template<typename T, int N>
-IO& IO::add(const char *k, T (&v)[N], Type t, T tolerance)
+IO& IO::add(const char *k, T (&v)[N], Type t, Tolerance tolerance)
 {
 	if (!k || nkeys >= capacity)
 		goto out;
@@ -212,7 +213,7 @@ IO& IO::add(const char *k, T (&v)[N], Type t, T tolerance)
 
 	types[nkeys] = t;
 	keys[nkeys] = k;
-	values[nkeys] = Val { now: &v, before: 0, tolerance: { 0 }, length: N };
+	values[nkeys] = Val { now: &v, before: malloc(sizeof(v)), tolerance, length: N };
 	functions[nkeys] = 0;
 	nkeys++;
 
@@ -224,12 +225,13 @@ out:
 template<int N>
 IO& IO::add(const char *k, int (&v)[N])
 {
-	return add(k, v, Type::IntArray, 0);
+	return add(k, v, Type::IntArray);
 }
 
 template<int N>
-IO& IO::add(const char *k, int (&v)[N], int tolerance)
+IO& IO::add(const char *k, int (&v)[N], int theTolerance)
 {
+	Tolerance tolerance = { i: theTolerance };
 	return add(k, v, Type::IntArray, tolerance);
 }
 
@@ -237,12 +239,13 @@ IO& IO::add(const char *k, int (&v)[N], int tolerance)
 template<int N>
 IO& IO::add(const char *k, float (&v)[N]) 
 {
-	return add(k, v, Type::FloatArray, 0.0f);
+	return add(k, v, Type::FloatArray);
 }
 
 template<int N>
-IO& IO::add(const char *k, float (&v)[N], float tolerance)
+IO& IO::add(const char *k, float (&v)[N], float theTolerance)
 {
+	Tolerance tolerance = { f: theTolerance };
 	return add(k, v, Type::FloatArray, tolerance);
 }
 
