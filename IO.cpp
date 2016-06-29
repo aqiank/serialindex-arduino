@@ -69,13 +69,13 @@ IO& IO::add(const char *k, char *&v)
 // function
 IO& IO::listen(const char *k, void (*v)(void)) 
 {
-	int i;
+	size_t i;
 
 	if (!k)
 		goto out;
 
 	i = find_key(k);
-	if (i < 0)
+	if (i == SIZE_MAX)
 		goto out;
 
 	functions[i] = v;
@@ -86,7 +86,7 @@ out:
 
 size_t IO::available()
 {
-	while (ikey < nkeys) {
+	while (ikey < nkeys && ikey < SIZE_MAX) {
 		if (!values[ikey].tolerance.i && !values[ikey].before)
 			continue;
 
@@ -913,7 +913,7 @@ void IO::reset_context(void)
 {
 	context = Context::Key;
 	ibuffer = 0;
-	ikey = 0;
+	ikey = SIZE_MAX;
 }
 
 size_t IO::find_key(const char *s) 
