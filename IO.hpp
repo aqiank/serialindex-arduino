@@ -230,7 +230,7 @@ IO& IO::add(const char *k, int (&v)[N])
 template<int N>
 IO& IO::add(const char *k, int (&v)[N], int tolerance)
 {
-	return add(k, v, Type::IntArray, 0);
+	return add(k, v, Type::IntArray, tolerance);
 }
 
 // float-array
@@ -243,7 +243,7 @@ IO& IO::add(const char *k, float (&v)[N])
 template<int N>
 IO& IO::add(const char *k, float (&v)[N], float tolerance)
 {
-	return add(k, v, Type::FloatArray, 0.0f);
+	return add(k, v, Type::FloatArray, tolerance);
 }
 
 // string
