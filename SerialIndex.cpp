@@ -71,7 +71,7 @@ SerialIndex& SerialIndex::read(bool b)
 	if (b)
 		mode |= Mode::Read;
 	else
-		mode ^= Mode::Read;
+		mode &= ~Mode::Read;
 
 	return *this;
 }
@@ -81,17 +81,17 @@ SerialIndex& SerialIndex::write(bool b)
 	if (b)
 		mode |= Mode::Write;
 	else
-		mode ^= Mode::Write;
+		mode &= ~Mode::Write;
 
 	return *this;
 }
 
 void SerialIndex::update(void)
 {
-	if (mode & Mode::Read != 0)
+	if ((mode & Mode::Read) != 0)
 		in();
 
-	if (mode & Mode::Write != 0)
+	if ((mode & Mode::Write) != 0)
 		out();
 }
 
