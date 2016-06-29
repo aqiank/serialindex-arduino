@@ -7,9 +7,6 @@ static const size_t EOL_LEN                     = LEN(EOL) - 1;
 
 IO::IO()
 {
-	values     = (Val *) malloc(sizeof(*values) * capacity);
-	memset(values, 0, sizeof(*values) * capacity);
-
 	context    = Context::Key;
 	capacity   = CAPACITY;
 	keys       = new const char *[capacity];
@@ -20,6 +17,9 @@ IO::IO()
 	nbuffer    = 0;
 	ikey       = SIZE_MAX;
 	nkeys      = 0;
+
+	values     = (Val *) malloc(sizeof(*values) * capacity);
+	memset(values, 0, sizeof(*values) * capacity);
 }
 
 IO::~IO()
