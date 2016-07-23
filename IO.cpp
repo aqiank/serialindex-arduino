@@ -37,6 +37,8 @@ IO::~IO()
 	delete functions;
 }
 
+#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
+
 // int
 IO& IO::add(const char *k, int &v, int theTolerance) 
 {
@@ -49,6 +51,10 @@ IO& IO::add(const char *k, int &v)
 	return add(k, v, Type::Int);
 }
 
+#endif
+
+#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+
 // float
 IO& IO::add(const char *k, float &v, float theTolerance)
 {
@@ -60,11 +66,17 @@ IO& IO::add(const char *k, float &v)
 	return add(k, v, Type::Float);
 }
 
+#endif
+
+#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+
 // string
 IO& IO::add(const char *k, char *&v) 
 {
 	return add(k, v, Type::String);
 }
+
+#endif
 
 // function
 IO& IO::listen(const char *k, void (*v)(void)) 
@@ -95,25 +107,36 @@ bool IO::check_value_updates()
 	ibuffer = 0;
 
 	switch (types[ikey]) {
+
+#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
 	case Type::Int:
 		read_int();
 		break;
+#endif
 
+#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
 	case Type::Float:
 		read_float();
 		break;
+#endif
 
-	case Type::IntArray:
-		read_int_array();
-		break;
-
-	case Type::FloatArray:
-		read_float_array();
-		break;
-
+#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
 	case Type::String:
 		read_string();
 		break;
+#endif
+
+#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+	case Type::IntArray:
+		read_int_array();
+		break;
+#endif
+
+#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+	case Type::FloatArray:
+		read_float_array();
+		break;
+#endif
 
 	default:
 		break;
@@ -145,6 +168,7 @@ char IO::read()
 	return buffer[ibuffer++];
 }
 
+#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
 bool IO::read_int()
 {
 	const int tolerance = values[ikey].tolerance.i;
@@ -161,6 +185,40 @@ bool IO::read_int()
 	return false;
 }
 
+void IO::write_int(char c)
+{
+	if (is_eol()) {
+		if (validate_int(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
+			eval(&buffer[0], &buffer[ibuffer - EOL_LEN]);
+			return;
+		}
+
+		reset_context();
+	}
+}
+
+ValidateResult IO::validate_int(char *s, char *e)
+{
+	const char *p;
+
+	for (p = s; p < e; p++) {
+		if (!isdigit(*p))
+			return ValidateResult::Invalid;
+	}
+
+	return ValidateResult::Ok;
+}
+
+void IO::eval_int(char *s, char *e)
+{
+	int *now = (int *) values[ikey].now;
+	int *before = (int *) values[ikey].before;
+
+	*before = *now = atois(s, e);
+}
+#endif
+
+#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
 bool IO::read_float()
 {
 	const float tolerance = values[ikey].tolerance.f;
@@ -198,6 +256,105 @@ bool IO::read_float()
 	return false;
 }
 
+void IO::write_float(char c)
+{
+	if (is_eol()) {
+		if (validate_float(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
+			eval(&buffer[0], &buffer[ibuffer - EOL_LEN]);
+			return;
+		}
+
+		reset_context();
+	}
+}
+
+ValidateResult IO::validate_float(char *s, char *e)
+{
+	const char *p;
+	int ndots = 0;
+
+	for (p = s; p < e; p++) {
+		if (isdigit(*p))
+			continue;
+		else if (*p == '.' && ndots == 0)
+			ndots++;
+		else
+			return ValidateResult::Invalid;
+	}
+
+	return ValidateResult::Ok;
+}
+
+void IO::eval_float(char *s, char *e)
+{
+	float *now = (float *) values[ikey].now;
+	float *before = (float *) values[ikey].before;
+	
+	*before = *now = strtods(s, e, NULL);
+}
+#endif
+
+#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+bool IO::read_string()
+{
+	const char *now     = (char *) values[ikey].now;
+	char *before        = (char *) values[ikey].before;
+
+	if (strcmp(now, before) != 0) {
+		snprintf(buffer, BUFFERSIZE, "%s%c%s%s", keys[ikey], KV_DELIMITER, now, EOL);
+		strcpy(before, now);
+		nbuffer = strlen(buffer);
+		return true;
+	}
+
+	return false;
+}
+
+void IO::write_string(char c)
+{
+	if (is_eol()) {
+		switch (validate_string(&buffer[0], &buffer[ibuffer - EOL_LEN])) {
+		case ValidateResult::Ok:
+			eval(&buffer[0], &buffer[ibuffer - EOL_LEN]);
+
+		case ValidateResult::Continue:
+			return;
+
+		default:
+			reset_context();
+		}
+	}
+}
+
+ValidateResult IO::validate_string(char *s, char *e)
+{
+	const char fc = *s;
+	const bool has_start_quote = fc == '\'' || fc == '"';
+	const bool has_end_quote = e - s > 1 && *(e - 1) == fc;
+
+	if (has_start_quote && !has_end_quote)
+		return ValidateResult::Continue;
+
+	return ValidateResult::Ok;
+}
+
+void IO::eval_string(char *s, char *e)
+{
+	char *now = (char *) values[ikey].now;
+	char *before = (char *) values[ikey].before;
+
+	if (*s == '\'' || *s == '"') {
+		s += 1;
+		e -= 1;
+	}
+
+	*e = 0;
+	strcpy(now, s);
+	strcpy(before, s);
+}
+#endif
+
+#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
 bool IO::read_int_array()
 {
 	const size_t length = values[ikey].length;
@@ -231,6 +388,164 @@ bool IO::read_int_array()
 	return changed;
 }
 
+void IO::write_int_array(char c)
+{
+	if (c == ']') {
+		if (validate_int_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
+			eval(&buffer[1], &buffer[ibuffer + 1]);
+			return;
+		}
+
+		context = Context::Skip;
+	}
+}
+
+void IO::write_int_slice_array(char c)
+{
+	if (c == '}') {
+		if (validate_int_slice_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
+			eval(&buffer[1], &buffer[ibuffer + 1]);
+
+		context = Context::Skip;
+	}
+}
+
+ValidateResult IO::validate_int_array(char *s, char *e)
+{
+	char *pp, *q;
+	size_t i = 0;
+
+	for (pp = q = s; q < e; q++) {
+		if (*q == ',' || *q == ']') {
+			if (validate_int(pp, q) != ValidateResult::Ok)
+				return ValidateResult::Invalid;
+
+			pp = q + 1;
+			i++;
+		}
+	}
+
+	return ValidateResult::Ok;
+}
+
+ValidateResult IO::validate_int_slice_array(char *s, char *e)
+{
+	char *pp, *q;
+	size_t i = 0;
+
+	for (pp = q = s; q < e; q++) {
+		if (*q == ',' || *q == '}') {
+			if (validate_int_slice(pp, q) != ValidateResult::Ok)
+				return ValidateResult::Invalid;
+
+			pp = q + 1;
+			i++;
+		}
+	}
+
+	return ValidateResult::Ok;
+}
+
+ValidateResult IO::validate_int_slice(char *s, char *e)
+{
+	char *p;
+	char *dp = 0;
+	char *rdp = 0;
+
+	for (p = s; p < e; p++) {
+		if (dp)
+			return validate_int(p, e);
+
+		if (*p == SLICE_DELIMITER) {
+			dp = p;
+		} else if (is_slice_range_delimiter(p)) {
+			if (rdp)
+				goto invalid;
+			rdp = p;
+			p += SLICE_RANGE_DELIMITER_LEN - 1;
+		} else if (!isdigit(*p)) {
+			goto invalid;
+		}
+	}
+
+invalid:
+	return ValidateResult::Invalid;
+}
+
+void IO::eval_int_array(char *s, char *e)
+{
+	char *p, *q;
+	size_t i = 0;
+
+	for (p = q = s; q < e; q++) {
+		if (*q == ',' || *q == ']') {
+			eval_int_array_nth(p, q, i);
+			p = q + 1;
+			i++;
+		}
+	}
+}
+
+void IO::eval_int_array_nth(char *s, char *e, size_t i)
+{
+	int *now = (int *) values[ikey].now;
+	int *before = (int *) values[ikey].before;
+
+	if (*s == ']' && *e == ']')
+		return;
+
+	before[i] = now[i] = atois(s, e);
+}
+
+void IO::eval_int_slice_array(char *s, char *e)
+{
+	char *p, *q;
+	size_t i = 0;
+
+	for (p = q = s; q < e; q++) {
+		if (*q == ',' || *q == '}') {
+			eval_int_slice(p, q);
+			p = q + 1;
+			i++;
+		}
+	}
+}
+
+void IO::eval_int_slice(char *s, char *e)
+{
+	char *p, *dp = 0, *rdp = 0;
+	int *now = (int *) values[ikey].now;
+	int *before = (int *) values[ikey].before;
+	int value = 0;
+	size_t start = 0, end = 0;
+	size_t i;
+
+	for (p = s; p < e; p++) {
+		if (*p == SLICE_DELIMITER)
+			dp = p;
+		else if (is_slice_range_delimiter(p))
+			rdp = p;
+	}
+
+	if (rdp) {
+		if (rdp > s)
+			start = atois(s, rdp);
+
+		if (rdp < dp - SLICE_RANGE_DELIMITER_LEN)
+			end = atois(rdp + SLICE_RANGE_DELIMITER_LEN, dp);
+	} else {
+		start = atois(s, dp);
+		end = start + 1;
+	}
+
+	value = atois(dp + 1, e);
+
+	for (i = start; i < end; i++)
+		before[i] = now[i] = value;
+}
+#endif
+
+#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
 bool IO::read_float_array()
 {
 	const size_t length   = values[ikey].length;
@@ -283,20 +598,162 @@ bool IO::read_float_array()
 	return changed;
 }
 
-bool IO::read_string()
+void IO::write_float_array(char c)
 {
-	const char *now     = (char *) values[ikey].now;
-	char *before        = (char *) values[ikey].before;
+	if (c == ']') {
+		if (validate_float_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
+			eval(&buffer[1], &buffer[ibuffer + 1]);
+			return;
+		}
 
-	if (strcmp(now, before) != 0) {
-		snprintf(buffer, BUFFERSIZE, "%s%c%s%s", keys[ikey], KV_DELIMITER, now, EOL);
-		strcpy(before, now);
-		nbuffer = strlen(buffer);
-		return true;
+		context = Context::Skip;
+	}
+}
+
+void IO::write_float_slice_array(char c)
+{
+	if (c == '}') {
+		if (validate_float_slice_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
+			eval(&buffer[1], &buffer[ibuffer + 1]);
+
+		context = Context::Skip;
+	}
+}
+
+ValidateResult IO::validate_float_array(char *s, char *e)
+{
+	char *pp, *q;
+	size_t i = 0;
+
+	for (pp = q = s; q < e; q++) {
+		if (*q == ',' || *q == ']') {
+			if (validate_float(pp, q) != ValidateResult::Ok)
+				return ValidateResult::Invalid;
+
+			pp = q + 1;
+			i++;
+		}
 	}
 
-	return false;
+	return ValidateResult::Ok;
 }
+
+ValidateResult IO::validate_float_slice_array(char *s, char *e)
+{
+	char *pp, *q;
+	size_t i = 0;
+
+	for (pp = q = s; q < e; q++) {
+		if (*q == ',' || *q == '}') {
+			if (validate_float_slice(pp, q) != ValidateResult::Ok)
+				return ValidateResult::Invalid;
+
+			pp = q + 1;
+			i++;
+		}
+	}
+
+	return ValidateResult::Ok;
+}
+
+ValidateResult IO::validate_float_slice(char *s, char *e)
+{
+	char *p;
+	char *dp = 0;
+	char *rdp = 0;
+
+	for (p = s; p < e; p++) {
+		if (dp)
+			return validate_float(p, e);
+
+		if (*p == SLICE_DELIMITER) {
+			dp = p;
+		} else if (is_slice_range_delimiter(p)) {
+			if (rdp)
+				goto invalid;
+			rdp = p;
+			p += SLICE_RANGE_DELIMITER_LEN - 1;
+		} else if (!isdigit(*p)) {
+			goto invalid;
+		}
+	}
+
+invalid:
+	return ValidateResult::Invalid;
+}
+
+void IO::eval_float_array(char *s, char *e)
+{
+	char *p, *q;
+	size_t i = 0;
+
+	for (p = q = s; q < e; q++) {
+		if (*q == ',' || *q == ']') {
+			eval_float_array_nth(p, q, i);
+			p = q + 1;
+			i++;
+		}
+	}
+}
+
+void IO::eval_float_array_nth(char *s, char *e, size_t i)
+{
+	float *now = (float *) values[ikey].now;
+	float *before = (float *) values[ikey].before;
+
+	if (*s == ']' && *e == ']')
+		return;
+
+	before[i] = now[i] = strtods(s, e, NULL);
+}
+
+void IO::eval_float_slice_array(char *s, char *e)
+{
+	char *p, *q;
+	size_t i = 0;
+
+	for (p = q = s; q < e; q++) {
+		if (*q == ',' || *q == '}') {
+			eval_float_slice(p, q);
+			p = q + 1;
+			i++;
+		}
+	}
+}
+
+void IO::eval_float_slice(char *s, char *e)
+{
+	char *p, *dp = 0, *rdp = 0;
+	float *now = (float *) values[ikey].now;
+	float *before = (float *) values[ikey].before;
+	float value = 0;
+	size_t start = 0, end = 0;
+	size_t i;
+
+	for (p = s; p < e; p++) {
+		if (*p == SLICE_DELIMITER)
+			dp = p;
+		else if (is_slice_range_delimiter(p))
+			rdp = p;
+	}
+
+	if (rdp) {
+		if (rdp > s)
+			start = atois(s, rdp);
+
+		if (rdp < dp - SLICE_RANGE_DELIMITER_LEN)
+			end = atois(rdp + SLICE_RANGE_DELIMITER_LEN, dp);
+	} else {
+		start = atois(s, dp);
+		end = start + 1;
+	}
+
+	value = strtods(dp + 1, e, NULL);
+
+	for (i = start; i < end; i++)
+		before[i] = now[i] = value;
+}
+#endif
 
 void IO::write(char c)
 {
@@ -316,41 +773,53 @@ void IO::write(char c)
 		write_value(c);
 		break;
 
+#if (SERIALINDEX_MODE & SERIALINDEX_Int) != 0
 	case Context::IntValue:
 		write_int(c);
 		break;
+#endif
 
+#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
 	case Context::FloatValue:
 		write_float(c);
 		break;
+#endif
 
+#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
 	case Context::StringValue:
 		write_string(c);
 		break;
+#endif
 
+#if (SERIALINDEX_MODE & SERIALINDEX_ARRAY) != 0
 	case Context::ArrayValue:
 		write_array(c);
-		break;
-
-	case Context::IntArrayValue:
-		write_int_array(c);
-		break;
-
-	case Context::FloatArrayValue:
-		write_float_array(c);
 		break;
 
 	case Context::SliceArrayValue:
 		write_slice_array(c);
 		break;
+#endif
+
+#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+	case Context::IntArrayValue:
+		write_int_array(c);
+		break;
 
 	case Context::IntSliceArrayValue:
 		write_int_slice_array(c);
+		break;
+#endif
+
+#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+	case Context::FloatArrayValue:
+		write_float_array(c);
 		break;
 
 	case Context::FloatSliceArrayValue:
 		write_float_slice_array(c);
 		break;
+#endif
 
 	case Context::Skip:
 		write_skip(c);
@@ -387,12 +856,15 @@ void IO::write_value(char c)
 	case '0'...'9':
 		if (type == Type::Int)
 			context = Context::IntValue;
+#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
 		else if (type == Type::Float)
 			context = Context::FloatValue;
+#endif
 		else
 			goto skip;
 		return;
 
+#if (SERIALINDEX_MODE & SERIALINDEX_ARRAY) != 0
 	case '[':
 		if (type != Type::IntArray && type != Type::FloatArray)
 			goto skip;
@@ -406,13 +878,17 @@ void IO::write_value(char c)
 
 		context = Context::SliceArrayValue;
 		return;
+#endif
 
+#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
 	default:
 		if (type != Type::String)
 			goto skip;
 
 		context = Context::StringValue;
 		return;
+#endif
+
 	}
 
 skip:
@@ -420,46 +896,7 @@ skip:
 	return;
 }
 
-void IO::write_int(char c)
-{
-	if (is_eol()) {
-		if (validate_int(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
-			eval(&buffer[0], &buffer[ibuffer - EOL_LEN]);
-			return;
-		}
-
-		reset_context();
-	}
-}
-
-void IO::write_float(char c)
-{
-	if (is_eol()) {
-		if (validate_float(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
-			eval(&buffer[0], &buffer[ibuffer - EOL_LEN]);
-			return;
-		}
-
-		reset_context();
-	}
-}
-
-void IO::write_string(char c)
-{
-	if (is_eol()) {
-		switch (validate_string(&buffer[0], &buffer[ibuffer - EOL_LEN])) {
-		case ValidateResult::Ok:
-			eval(&buffer[0], &buffer[ibuffer - EOL_LEN]);
-
-		case ValidateResult::Continue:
-			return;
-
-		default:
-			reset_context();
-		}
-	}
-}
-
+#if (SERIALINDEX_MODE & SERIALINDEX_ARRAY) != 0
 void IO::write_array(char c)
 {
 	const Type type = types[ikey];
@@ -479,30 +916,6 @@ void IO::write_array(char c)
 skip:
 		context = Context::Skip;
 		return;
-	}
-}
-
-void IO::write_int_array(char c)
-{
-	if (c == ']') {
-		if (validate_int_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
-			eval(&buffer[1], &buffer[ibuffer + 1]);
-			return;
-		}
-
-		context = Context::Skip;
-	}
-}
-
-void IO::write_float_array(char c)
-{
-	if (c == ']') {
-		if (validate_float_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
-			eval(&buffer[1], &buffer[ibuffer + 1]);
-			return;
-		}
-
-		context = Context::Skip;
 	}
 }
 
@@ -527,26 +940,7 @@ skip:
 		return;
 	}
 }
-
-void IO::write_int_slice_array(char c)
-{
-	if (c == '}') {
-		if (validate_int_slice_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
-			eval(&buffer[1], &buffer[ibuffer + 1]);
-
-		context = Context::Skip;
-	}
-}
-
-void IO::write_float_slice_array(char c)
-{
-	if (c == '}') {
-		if (validate_float_slice_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
-			eval(&buffer[1], &buffer[ibuffer + 1]);
-
-		context = Context::Skip;
-	}
-}
+#endif
 
 void IO::write_skip(char c)
 {
@@ -556,201 +950,47 @@ void IO::write_skip(char c)
 	reset_context();
 }
 
-ValidateResult IO::validate_int(char *s, char *e)
-{
-	const char *p;
-
-	for (p = s; p < e; p++) {
-		if (!isdigit(*p))
-			return ValidateResult::Invalid;
-	}
-
-	return ValidateResult::Ok;
-}
-
-ValidateResult IO::validate_float(char *s, char *e)
-{
-	const char *p;
-	int ndots = 0;
-
-	for (p = s; p < e; p++) {
-		if (isdigit(*p))
-			continue;
-		else if (*p == '.' && ndots == 0)
-			ndots++;
-		else
-			return ValidateResult::Invalid;
-	}
-
-	return ValidateResult::Ok;
-}
-
-ValidateResult IO::validate_string(char *s, char *e)
-{
-	const char fc = *s;
-	const bool has_start_quote = fc == '\'' || fc == '"';
-	const bool has_end_quote = e - s > 1 && *(e - 1) == fc;
-
-	if (has_start_quote && !has_end_quote)
-		return ValidateResult::Continue;
-
-	return ValidateResult::Ok;
-}
-
-ValidateResult IO::validate_int_array(char *s, char *e)
-{
-	char *pp, *q;
-	size_t i = 0;
-
-	for (pp = q = s; q < e; q++) {
-		if (*q == ',' || *q == ']') {
-			if (validate_int(pp, q) != ValidateResult::Ok)
-				return ValidateResult::Invalid;
-
-			pp = q + 1;
-			i++;
-		}
-	}
-
-	return ValidateResult::Ok;
-}
-
-ValidateResult IO::validate_float_array(char *s, char *e)
-{
-	char *pp, *q;
-	size_t i = 0;
-
-	for (pp = q = s; q < e; q++) {
-		if (*q == ',' || *q == ']') {
-			if (validate_float(pp, q) != ValidateResult::Ok)
-				return ValidateResult::Invalid;
-
-			pp = q + 1;
-			i++;
-		}
-	}
-
-	return ValidateResult::Ok;
-}
-
-ValidateResult IO::validate_int_slice_array(char *s, char *e)
-{
-	char *pp, *q;
-	size_t i = 0;
-
-	for (pp = q = s; q < e; q++) {
-		if (*q == ',' || *q == '}') {
-			if (validate_int_slice(pp, q) != ValidateResult::Ok)
-				return ValidateResult::Invalid;
-
-			pp = q + 1;
-			i++;
-		}
-	}
-
-	return ValidateResult::Ok;
-}
-
-ValidateResult IO::validate_float_slice_array(char *s, char *e)
-{
-	char *pp, *q;
-	size_t i = 0;
-
-	for (pp = q = s; q < e; q++) {
-		if (*q == ',' || *q == '}') {
-			if (validate_float_slice(pp, q) != ValidateResult::Ok)
-				return ValidateResult::Invalid;
-
-			pp = q + 1;
-			i++;
-		}
-	}
-
-	return ValidateResult::Ok;
-}
-
-ValidateResult IO::validate_int_slice(char *s, char *e)
-{
-	char *p;
-	char *dp = 0;
-	char *rdp = 0;
-
-	for (p = s; p < e; p++) {
-		if (dp)
-			return validate_int(p, e);
-
-		if (*p == SLICE_DELIMITER) {
-			dp = p;
-		} else if (is_slice_range_delimiter(p)) {
-			if (rdp)
-				goto invalid;
-			rdp = p;
-			p += SLICE_RANGE_DELIMITER_LEN - 1;
-		} else if (!isdigit(*p)) {
-			goto invalid;
-		}
-	}
-
-invalid:
-	return ValidateResult::Invalid;
-}
-
-ValidateResult IO::validate_float_slice(char *s, char *e)
-{
-	char *p;
-	char *dp = 0;
-	char *rdp = 0;
-
-	for (p = s; p < e; p++) {
-		if (dp)
-			return validate_float(p, e);
-
-		if (*p == SLICE_DELIMITER) {
-			dp = p;
-		} else if (is_slice_range_delimiter(p)) {
-			if (rdp)
-				goto invalid;
-			rdp = p;
-			p += SLICE_RANGE_DELIMITER_LEN - 1;
-		} else if (!isdigit(*p)) {
-			goto invalid;
-		}
-	}
-
-invalid:
-	return ValidateResult::Invalid;
-}
-
 void IO::eval(char *s, char *e)
 {
 	switch (context) {
+
+#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
 	case Context::IntValue:
 		eval_int(s, e);
 		break;
+#endif
 
+#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
 	case Context::FloatValue:
 		eval_float(s, e);
 		break;
+#endif
 
+#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
 	case Context::StringValue:
 		eval_string(s, e);
 		break;
+#endif
 
+#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
 	case Context::IntArrayValue:
 		eval_int_array(s, e);
-		break;
-
-	case Context::FloatArrayValue:
-		eval_float_array(s, e);
 		break;
 
 	case Context::IntSliceArrayValue:
 		eval_int_slice_array(s, e);
 		break;
+#endif
+
+#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+	case Context::FloatArrayValue:
+		eval_float_array(s, e);
+		break;
 
 	case Context::FloatSliceArrayValue:
 		eval_float_slice_array(s, e);
 		break;
+#endif
 
 	default:
 		return;
@@ -760,181 +1000,6 @@ void IO::eval(char *s, char *e)
 		functions[ikey]();
 
 	reset_context();
-}
-
-void IO::eval_int(char *s, char *e)
-{
-	int *now = (int *) values[ikey].now;
-	int *before = (int *) values[ikey].before;
-
-	*before = *now = atois(s, e);
-}
-
-void IO::eval_float(char *s, char *e)
-{
-	float *now = (float *) values[ikey].now;
-	float *before = (float *) values[ikey].before;
-	
-	*before = *now = strtods(s, e, NULL);
-}
-
-void IO::eval_string(char *s, char *e)
-{
-	char *now = (char *) values[ikey].now;
-	char *before = (char *) values[ikey].before;
-
-	if (*s == '\'' || *s == '"') {
-		s += 1;
-		e -= 1;
-	}
-
-	*e = 0;
-	strcpy(now, s);
-	strcpy(before, s);
-}
-
-void IO::eval_int_array(char *s, char *e)
-{
-	char *p, *q;
-	size_t i = 0;
-
-	for (p = q = s; q < e; q++) {
-		if (*q == ',' || *q == ']') {
-			eval_int_array_nth(p, q, i);
-			p = q + 1;
-			i++;
-		}
-	}
-}
-
-void IO::eval_int_array_nth(char *s, char *e, size_t i)
-{
-	int *now = (int *) values[ikey].now;
-	int *before = (int *) values[ikey].before;
-
-	if (*s == ']' && *e == ']')
-		return;
-
-	before[i] = now[i] = atois(s, e);
-}
-
-void IO::eval_float_array(char *s, char *e)
-{
-	char *p, *q;
-	size_t i = 0;
-
-	for (p = q = s; q < e; q++) {
-		if (*q == ',' || *q == ']') {
-			eval_float_array_nth(p, q, i);
-			p = q + 1;
-			i++;
-		}
-	}
-}
-
-void IO::eval_float_array_nth(char *s, char *e, size_t i)
-{
-	float *now = (float *) values[ikey].now;
-	float *before = (float *) values[ikey].before;
-
-	if (*s == ']' && *e == ']')
-		return;
-
-	before[i] = now[i] = strtods(s, e, NULL);
-}
-
-void IO::eval_int_slice_array(char *s, char *e)
-{
-	char *p, *q;
-	size_t i = 0;
-
-	for (p = q = s; q < e; q++) {
-		if (*q == ',' || *q == '}') {
-			eval_int_slice(p, q);
-			p = q + 1;
-			i++;
-		}
-	}
-}
-
-void IO::eval_float_slice_array(char *s, char *e)
-{
-	char *p, *q;
-	size_t i = 0;
-
-	for (p = q = s; q < e; q++) {
-		if (*q == ',' || *q == '}') {
-			eval_float_slice(p, q);
-			p = q + 1;
-			i++;
-		}
-	}
-}
-
-void IO::eval_int_slice(char *s, char *e)
-{
-	char *p, *dp = 0, *rdp = 0;
-	int *now = (int *) values[ikey].now;
-	int *before = (int *) values[ikey].before;
-	int value = 0;
-	size_t start = 0, end = 0;
-	size_t i;
-
-	for (p = s; p < e; p++) {
-		if (*p == SLICE_DELIMITER)
-			dp = p;
-		else if (is_slice_range_delimiter(p))
-			rdp = p;
-	}
-
-	if (rdp) {
-		if (rdp > s)
-			start = atois(s, rdp);
-
-		if (rdp < dp - SLICE_RANGE_DELIMITER_LEN)
-			end = atois(rdp + SLICE_RANGE_DELIMITER_LEN, dp);
-	} else {
-		start = atois(s, dp);
-		end = start + 1;
-	}
-
-	value = atois(dp + 1, e);
-
-	for (i = start; i < end; i++)
-		before[i] = now[i] = value;
-}
-
-void IO::eval_float_slice(char *s, char *e)
-{
-	char *p, *dp = 0, *rdp = 0;
-	float *now = (float *) values[ikey].now;
-	float *before = (float *) values[ikey].before;
-	float value = 0;
-	size_t start = 0, end = 0;
-	size_t i;
-
-	for (p = s; p < e; p++) {
-		if (*p == SLICE_DELIMITER)
-			dp = p;
-		else if (is_slice_range_delimiter(p))
-			rdp = p;
-	}
-
-	if (rdp) {
-		if (rdp > s)
-			start = atois(s, rdp);
-
-		if (rdp < dp - SLICE_RANGE_DELIMITER_LEN)
-			end = atois(rdp + SLICE_RANGE_DELIMITER_LEN, dp);
-	} else {
-		start = atois(s, dp);
-		end = start + 1;
-	}
-
-	value = strtods(dp + 1, e, NULL);
-
-	for (i = start; i < end; i++)
-		before[i] = now[i] = value;
 }
 
 bool IO::is_eol()
