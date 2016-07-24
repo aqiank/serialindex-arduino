@@ -758,7 +758,6 @@ void IO::eval_float_slice(char *s, char *e)
 void IO::write(char c)
 {
 	buffer[ibuffer++] = c;
-
 	if (ibuffer >= BUFFERSIZE) {
 		ibuffer = 0;
 		context = Context::Skip;
@@ -838,7 +837,7 @@ void IO::write_key(char c)
 
 		context = Context::Value;
 		ibuffer = 0;
-	} else if (!isalpha(c)) {
+	} else if (!(isalpha(c) || isdigit(c))) {
 		goto skip;
 	}
 
