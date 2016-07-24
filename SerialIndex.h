@@ -189,33 +189,56 @@ public:
 	size_t            available();
 	void              reset_context(void);
 
-	char              read(void);
+#ifdef SERIALINDEX_READ
+	char              read();
+	void              read(char c);
+#endif
+
+#ifdef SERIALINDEX_WRITE
+	char              write();
+	char              write(char c);
+#endif
 
 #ifdef SERIALINDEX_INT
-	bool              read_int();
-	void              write_int(char c);
+#ifdef SERIALINDEX_WRITE
+	bool              write_int();
+#endif
+#ifdef SERIALINDEX_READ
+	void              read_int(char c);
 	ValidateResult    validate_int(char *s, char *e);
 	void              eval_int(char *s, char *e);
 #endif
+#endif
 
 #ifdef SERIALINDEX_FLOAT
-	bool              read_float();
-	void              write_float(char c);
+#ifdef SERIALINDEX_WRITE
+	bool              write_float();
+#endif
+#ifdef SERIALINDEX_READ
+	void              read_float(char c);
 	ValidateResult    validate_float(char *s, char *e);
 	void              eval_float(char *s, char *e);
 #endif
+#endif
 
 #ifdef SERIALINDEX_STRING
-	bool              read_string();
-	void              write_string(char c);
+#ifdef SERIALINDEX_WRITE
+	bool              write_string();
+#endif
+#ifdef SERIALINDEX_READ
+	void              read_string(char c);
 	ValidateResult    validate_string(char *s, char *e);
 	void              eval_string(char *s, char *e);
 #endif
+#endif
 
 #ifdef SERIALINDEX_INT_ARRAY
-	bool              read_int_array();
-	void              write_int_array(char c);
-	void              write_int_slice_array(char c);
+#ifdef SERIALINDEX_WRITE
+	bool              write_int_array();
+#endif
+#ifdef SERIALINDEX_READ
+	void              read_int_array(char c);
+	void              read_int_slice_array(char c);
 	ValidateResult    validate_int_array(char *s, char *e);
 	ValidateResult    validate_int_slice_array(char *s, char *e);
 	ValidateResult    validate_int_slice(char *s, char *e);
@@ -224,11 +247,15 @@ public:
 	void              eval_int_slice_array(char *s, char *e);
 	void              eval_int_slice(char *s, char *e);
 #endif
+#endif
 
 #ifdef SERIALINDEX_FLOAT_ARRAY
-	bool              read_float_array();
-	void              write_float_array(char c);
-	void              write_float_slice_array(char c);
+#ifdef SERIALINDEX_WRITE
+	bool              write_float_array();
+#endif
+#ifdef SERIALINDEX_READ
+	void              read_float_array(char c);
+	void              read_float_slice_array(char c);
 	ValidateResult    validate_float_array(char *s, char *e);
 	ValidateResult    validate_float_slice_array(char *s, char *e);
 	ValidateResult    validate_float_slice(char *s, char *e);
@@ -237,18 +264,20 @@ public:
 	void              eval_float_slice_array(char *s, char *e);
 	void              eval_float_slice(char *s, char *e);
 #endif
-
-#ifdef SERIALINDEX_ARRAY
-	void              write_array(char c);
-	void              write_slice_array(char c);
 #endif
 
-	void              write(char);
-	void              write_key(char c);
-	void              write_value(char c);
-	void              write_skip(char c);
+#ifdef SERIALINDEX_READ
+#ifdef SERIALINDEX_ARRAY
+	void              read_array(char c);
+	void              read_slice_array(char c);
+#endif
+
+	void              read_key(char c);
+	void              read_value(char c);
+	void              read_skip(char c);
 
 	void              eval(char *s, char *e);
+#endif
 
 private:
 	const char **     keys;

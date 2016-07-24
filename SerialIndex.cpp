@@ -89,7 +89,7 @@ void SerialIndex::update(void)
 SerialIndex& SerialIndex::in()
 {
 	while (serial.available())
-		SerialIndex::write(serial.read());
+		SerialIndex::read(serial.read());
 
 	return *this;
 }
@@ -110,7 +110,7 @@ SerialIndex& SerialIndex::out()
 {
 	while (SerialIndex::check_value_updates()) {
 		while (SerialIndex::available())
-			Serial.write(SerialIndex::read());
+			Serial.write(SerialIndex::write());
 	}
 
 	SerialIndex::reset_context();
@@ -188,6 +188,7 @@ out:
 	return *this; 
 }
 
+#ifdef SERIALINDEX_WRITE
 bool SerialIndex::check_value_updates()
 {
 	if (ikey == SIZE_MAX)
@@ -202,31 +203,31 @@ bool SerialIndex::check_value_updates()
 
 #ifdef SERIALINDEX_INT
 	case Type::Int:
-		read_int();
+		write_int();
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT
 	case Type::Float:
-		read_float();
+		write_float();
 		break;
 #endif
 
 #ifdef SERIALINDEX_STRING
 	case Type::String:
-		read_string();
+		write_string();
 		break;
 #endif
 
 #ifdef SERIALINDEX_INT_ARRAY
 	case Type::IntArray:
-		read_int_array();
+		write_int_array();
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT_ARRAY
 	case Type::FloatArray:
-		read_float_array();
+		write_float_array();
 		break;
 #endif
 
@@ -250,7 +251,7 @@ size_t SerialIndex::available()
 	return d;
 }
 
-char SerialIndex::read()
+char SerialIndex::write()
 {
 	if (ibuffer >= nbuffer) {
 		ikey = 0;
@@ -259,9 +260,11 @@ char SerialIndex::read()
 
 	return buffer[ibuffer++];
 }
+#endif
 
 #ifdef SERIALINDEX_INT
-bool SerialIndex::read_int()
+#ifdef SERIALINDEX_WRITE
+bool SerialIndex::write_int()
 {
 	const int tolerance = values[ikey].tolerance.i;
 	const int *now      = (int *) values[ikey].now;
@@ -276,8 +279,10 @@ bool SerialIndex::read_int()
 
 	return false;
 }
+#endif
 
-void SerialIndex::write_int(char c)
+#ifdef SERIALINDEX_READ
+void SerialIndex::read_int(char c)
 {
 	if (is_eol()) {
 		if (validate_int(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
@@ -309,9 +314,11 @@ void SerialIndex::eval_int(char *s, char *e)
 	*before = *now = atois(s, e);
 }
 #endif
+#endif
 
 #ifdef SERIALINDEX_FLOAT
-bool SerialIndex::read_float()
+#ifdef SERIALINDEX_WRITE
+bool SerialIndex::write_float()
 {
 	const float tolerance = values[ikey].tolerance.f;
 	const float *now      = (float *) values[ikey].now;
@@ -346,8 +353,10 @@ bool SerialIndex::read_float()
 
 	return false;
 }
+#endif
 
-void SerialIndex::write_float(char c)
+#ifdef SERIALINDEX_READ
+void SerialIndex::read_float(char c)
 {
 	if (is_eol()) {
 		if (validate_float(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
@@ -384,9 +393,11 @@ void SerialIndex::eval_float(char *s, char *e)
 	*before = *now = strtods(s, e, NULL);
 }
 #endif
+#endif
 
 #ifdef SERIALINDEX_STRING
-bool SerialIndex::read_string()
+#ifdef SERIALINDEX_WRITE
+bool SerialIndex::write_string()
 {
 	const char *now     = (char *) values[ikey].now;
 	char *before        = (char *) values[ikey].before;
@@ -400,8 +411,10 @@ bool SerialIndex::read_string()
 
 	return false;
 }
+#endif
 
-void SerialIndex::write_string(char c)
+#ifdef SERIALINDEX_READ
+void SerialIndex::read_string(char c)
 {
 	if (is_eol()) {
 		switch (validate_string(&buffer[0], &buffer[ibuffer - EOL_LEN])) {
@@ -444,9 +457,11 @@ void SerialIndex::eval_string(char *s, char *e)
 	strcpy(before, s);
 }
 #endif
+#endif
 
 #ifdef SERIALINDEX_INT_ARRAY
-bool SerialIndex::read_int_array()
+#ifdef SERIALINDEX_WRITE
+bool SerialIndex::write_int_array()
 {
 	const size_t length = values[ikey].length;
 	const int tolerance = values[ikey].tolerance.f;
@@ -478,8 +493,10 @@ bool SerialIndex::read_int_array()
 
 	return changed;
 }
+#endif
 
-void SerialIndex::write_int_array(char c)
+#ifdef SERIALINDEX_READ
+void SerialIndex::read_int_array(char c)
 {
 	if (c == ']') {
 		if (validate_int_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
@@ -491,7 +508,7 @@ void SerialIndex::write_int_array(char c)
 	}
 }
 
-void SerialIndex::write_int_slice_array(char c)
+void SerialIndex::read_int_slice_array(char c)
 {
 	if (c == '}') {
 		if (validate_int_slice_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
@@ -635,9 +652,11 @@ void SerialIndex::eval_int_slice(char *s, char *e)
 		before[i] = now[i] = value;
 }
 #endif
+#endif
 
 #ifdef SERIALINDEX_FLOAT_ARRAY
-bool SerialIndex::read_float_array()
+#ifdef SERIALINDEX_WRITE
+bool SerialIndex::write_float_array()
 {
 	const size_t length   = values[ikey].length;
 	const float tolerance = values[ikey].tolerance.f;
@@ -688,8 +707,10 @@ bool SerialIndex::read_float_array()
 
 	return changed;
 }
+#endif
 
-void SerialIndex::write_float_array(char c)
+#ifdef SERIALINDEX_READ
+void SerialIndex::read_float_array(char c)
 {
 	if (c == ']') {
 		if (validate_float_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
@@ -701,7 +722,7 @@ void SerialIndex::write_float_array(char c)
 	}
 }
 
-void SerialIndex::write_float_slice_array(char c)
+void SerialIndex::read_float_slice_array(char c)
 {
 	if (c == '}') {
 		if (validate_float_slice_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
@@ -845,8 +866,10 @@ void SerialIndex::eval_float_slice(char *s, char *e)
 		before[i] = now[i] = value;
 }
 #endif
+#endif
 
-void SerialIndex::write(char c)
+#ifdef SERIALINDEX_READ
+void SerialIndex::read(char c)
 {
 	buffer[ibuffer++] = c;
 	if (ibuffer >= BUFFERSIZE) {
@@ -856,68 +879,68 @@ void SerialIndex::write(char c)
 
 	switch (context) {
 	case Context::Key:
-		write_key(c);
+		read_key(c);
 		break;
 
 	case Context::Value:
-		write_value(c);
+		read_value(c);
 		break;
 
 #ifdef SERIALINDEX_INT
 	case Context::IntValue:
-		write_int(c);
+		read_int(c);
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT
 	case Context::FloatValue:
-		write_float(c);
+		read_float(c);
 		break;
 #endif
 
 #ifdef SERIALINDEX_STRING
 	case Context::StringValue:
-		write_string(c);
+		read_string(c);
 		break;
 #endif
 
 #ifdef SERIALINDEX_ARRAY
 	case Context::ArrayValue:
-		write_array(c);
+		read_array(c);
 		break;
 
 	case Context::SliceArrayValue:
-		write_slice_array(c);
+		read_slice_array(c);
 		break;
 #endif
 
 #ifdef SERIALINDEX_INT_ARRAY
 	case Context::IntArrayValue:
-		write_int_array(c);
+		read_int_array(c);
 		break;
 
 	case Context::IntSliceArrayValue:
-		write_int_slice_array(c);
+		read_int_slice_array(c);
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT_ARRAY
 	case Context::FloatArrayValue:
-		write_float_array(c);
+		read_float_array(c);
 		break;
 
 	case Context::FloatSliceArrayValue:
-		write_float_slice_array(c);
+		read_float_slice_array(c);
 		break;
 #endif
 
 	case Context::Skip:
-		write_skip(c);
+		read_skip(c);
 		break;
 	}
 }
 
-void SerialIndex::write_key(char c)
+void SerialIndex::read_key(char c)
 {
 	if (c == KV_DELIMITER) {
 		buffer[ibuffer - 1] = 0;
@@ -938,7 +961,7 @@ skip:
 	context = Context::Skip;
 }
 
-void SerialIndex::write_value(char c)
+void SerialIndex::read_value(char c)
 {
 	const Type type = types[ikey];
 
@@ -987,7 +1010,7 @@ skip:
 }
 
 #ifdef SERIALINDEX_ARRAY
-void SerialIndex::write_array(char c)
+void SerialIndex::read_array(char c)
 {
 	const Type type = types[ikey];
 
@@ -1009,7 +1032,7 @@ skip:
 	}
 }
 
-void SerialIndex::write_slice_array(char c)
+void SerialIndex::read_slice_array(char c)
 {
 	const Type type = types[ikey];
 
@@ -1032,7 +1055,7 @@ skip:
 }
 #endif
 
-void SerialIndex::write_skip(char c)
+void SerialIndex::read_skip(char c)
 {
 	if (!is_eol())
 		return;
@@ -1125,5 +1148,6 @@ size_t SerialIndex::find_key(const char *s)
 
 	return SIZE_MAX;
 }
+#endif
 
 SerialIndex Index(Serial);
