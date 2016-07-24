@@ -37,7 +37,7 @@ IO::~IO()
 	delete functions;
 }
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
+#ifdef IO_INT
 
 // int
 IO& IO::add(const char *k, int &v, int theTolerance) 
@@ -53,7 +53,7 @@ IO& IO::add(const char *k, int &v)
 
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+#ifdef IO_FLOAT
 
 // float
 IO& IO::add(const char *k, float &v, float theTolerance)
@@ -68,7 +68,7 @@ IO& IO::add(const char *k, float &v)
 
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+#ifdef IO_STRING
 
 // string
 IO& IO::add(const char *k, char *&v) 
@@ -108,31 +108,31 @@ bool IO::check_value_updates()
 
 	switch (types[ikey]) {
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
+#ifdef IO_INT
 	case Type::Int:
 		read_int();
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+#ifdef IO_FLOAT
 	case Type::Float:
 		read_float();
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+#ifdef IO_STRING
 	case Type::String:
 		read_string();
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+#ifdef IO_INT_ARRAY
 	case Type::IntArray:
 		read_int_array();
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+#ifdef IO_FLOAT_ARRAY
 	case Type::FloatArray:
 		read_float_array();
 		break;
@@ -168,7 +168,7 @@ char IO::read()
 	return buffer[ibuffer++];
 }
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
+#ifdef IO_INT
 bool IO::read_int()
 {
 	const int tolerance = values[ikey].tolerance.i;
@@ -218,7 +218,7 @@ void IO::eval_int(char *s, char *e)
 }
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+#ifdef IO_FLOAT
 bool IO::read_float()
 {
 	const float tolerance = values[ikey].tolerance.f;
@@ -294,7 +294,7 @@ void IO::eval_float(char *s, char *e)
 }
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+#ifdef IO_STRING
 bool IO::read_string()
 {
 	const char *now     = (char *) values[ikey].now;
@@ -354,7 +354,7 @@ void IO::eval_string(char *s, char *e)
 }
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+#ifdef IO_INT_ARRAY
 bool IO::read_int_array()
 {
 	const size_t length = values[ikey].length;
@@ -545,7 +545,7 @@ void IO::eval_int_slice(char *s, char *e)
 }
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+#ifdef IO_FLOAT_ARRAY
 bool IO::read_float_array()
 {
 	const size_t length   = values[ikey].length;
@@ -773,25 +773,25 @@ void IO::write(char c)
 		write_value(c);
 		break;
 
-#if (SERIALINDEX_MODE & SERIALINDEX_Int) != 0
+#ifdef IO_INT
 	case Context::IntValue:
 		write_int(c);
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+#ifdef IO_FLOAT
 	case Context::FloatValue:
 		write_float(c);
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+#ifdef IO_STRING
 	case Context::StringValue:
 		write_string(c);
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_ARRAY) != 0
+#ifdef IO_ARRAY
 	case Context::ArrayValue:
 		write_array(c);
 		break;
@@ -801,7 +801,7 @@ void IO::write(char c)
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+#ifdef IO_INT_ARRAY
 	case Context::IntArrayValue:
 		write_int_array(c);
 		break;
@@ -811,7 +811,7 @@ void IO::write(char c)
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+#ifdef IO_FLOAT_ARRAY
 	case Context::FloatArrayValue:
 		write_float_array(c);
 		break;
@@ -856,7 +856,7 @@ void IO::write_value(char c)
 	case '0'...'9':
 		if (type == Type::Int)
 			context = Context::IntValue;
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+#ifdef IO_FLOAT
 		else if (type == Type::Float)
 			context = Context::FloatValue;
 #endif
@@ -864,7 +864,7 @@ void IO::write_value(char c)
 			goto skip;
 		return;
 
-#if (SERIALINDEX_MODE & SERIALINDEX_ARRAY) != 0
+#ifdef IO_ARRAY
 	case '[':
 		if (type != Type::IntArray && type != Type::FloatArray)
 			goto skip;
@@ -880,7 +880,7 @@ void IO::write_value(char c)
 		return;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+#ifdef IO_STRING
 	default:
 		if (type != Type::String)
 			goto skip;
@@ -896,7 +896,7 @@ skip:
 	return;
 }
 
-#if (SERIALINDEX_MODE & SERIALINDEX_ARRAY) != 0
+#ifdef IO_ARRAY
 void IO::write_array(char c)
 {
 	const Type type = types[ikey];
@@ -954,25 +954,25 @@ void IO::eval(char *s, char *e)
 {
 	switch (context) {
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
+#ifdef IO_INT
 	case Context::IntValue:
 		eval_int(s, e);
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+#ifdef IO_FLOAT
 	case Context::FloatValue:
 		eval_float(s, e);
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+#ifdef IO_STRING
 	case Context::StringValue:
 		eval_string(s, e);
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+#ifdef IO_INT_ARRAY
 	case Context::IntArrayValue:
 		eval_int_array(s, e);
 		break;
@@ -982,7 +982,7 @@ void IO::eval(char *s, char *e)
 		break;
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+#ifdef IO_FLOAT_ARRAY
 	case Context::FloatArrayValue:
 		eval_float_array(s, e);
 		break;

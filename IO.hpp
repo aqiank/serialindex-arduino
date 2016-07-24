@@ -3,15 +3,16 @@
 
 #include "util.h"
 
-#define SERIALINDEX_INT          (1)
-#define SERIALINDEX_FLOAT        (2)
-#define SERIALINDEX_STRING       (4)
-#define SERIALINDEX_INT_ARRAY    (8)
-#define SERIALINDEX_FLOAT_ARRAY  (16)
-#define SERIALINDEX_ARRAY        (24)
-#define SERIALINDEX_ALL          (31)
+// uncomment one or more of the following flags to disable certain types
+#define IO_INT
+#define IO_FLOAT
+#define IO_STRING
+#define IO_INT_ARRAY
+#define IO_FLOAT_ARRAY
 
-#define SERIALINDEX_MODE         SERIALINDEX_INT
+#if defined(IO_INT_ARRAY) || defined(IO_FLOAT_ARRAY)
+#define IO_ARRAY
+#endif
 
 #define BAUDRATE       (9600)
 #define CAPACITY       (6)
@@ -23,7 +24,7 @@ typedef void (*Function)(void);
 union Tolerance {
 	int   i;
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+#ifdef IO_FLOAT
 	float f;
 #endif
 };
@@ -39,39 +40,39 @@ enum Context {
 	Key,
 	Value,
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
+#ifdef IO_INT
 	IntValue,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+#ifdef IO_FLOAT
 	FloatValue,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+#ifdef IO_STRING
 	StringValue,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_ARRAY) != 0
+#ifdef IO_ARRAY
 	ArrayValue,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+#ifdef IO_INT_ARRAY
 	IntArrayValue,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+#ifdef IO_FLOAT_ARRAY
 	FloatArrayValue,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_ARRAY) != 0
+#ifdef IO_ARRAY
 	SliceArrayValue,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+#ifdef IO_INT_ARRAY
 	IntSliceArrayValue,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+#ifdef IO_FLOAT_ARRAY
 	FloatSliceArrayValue,
 #endif
 
@@ -81,23 +82,23 @@ enum Context {
 enum Type {
 	Unknown = 0,
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
+#ifdef IO_INT
 	Int,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+#ifdef IO_FLOAT
 	Float,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+#ifdef IO_STRING
 	String,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+#ifdef IO_INT_ARRAY
 	IntArray,
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+#ifdef IO_FLOAT_ARRAY
 	FloatArray,
 #endif
 
@@ -114,19 +115,19 @@ public:
 	IO();
 	~IO();
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
+#ifdef IO_INT
 	// int
 	IO&            add(const char *k, int &v, int theTolerance);
 	IO&            add(const char *k, int &v);
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+#ifdef IO_FLOAT
 	// float
 	IO&            add(const char *k, float &v, float theTolerance);
 	IO&            add(const char *k, float &v);
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+#ifdef IO_INT_ARRAY
 	// int-array
 	template<int N>
 	IO&            add(const char *k, int (&v)[N]);
@@ -135,7 +136,7 @@ public:
 	IO&            add(const char *k, int (&v)[N], int tolerance);
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+#ifdef IO_FLOAT_ARRAY
 	// float-array
 	template<int N>
 	IO&            add(const char *k, float (&v)[N]);
@@ -144,7 +145,7 @@ public:
 	IO&            add(const char *k, float (&v)[N], float tolerance);
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+#ifdef IO_STRING
 	// string
 	template<int N>
 	IO&            add(const char *k, char (&v)[N]);
@@ -160,28 +161,28 @@ public:
 
 	char           read();
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT) != 0
+#ifdef IO_INT
 	bool           read_int();
 	void           write_int(char c);
 	ValidateResult validate_int(char *s, char *e);
 	void           eval_int(char *s, char *e);
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT) != 0
+#ifdef IO_FLOAT
 	bool           read_float();
 	void           write_float(char c);
 	ValidateResult validate_float(char *s, char *e);
 	void           eval_float(char *s, char *e);
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+#ifdef IO_STRING
 	bool           read_string();
 	void           write_string(char c);
 	ValidateResult validate_string(char *s, char *e);
 	void           eval_string(char *s, char *e);
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+#ifdef IO_INT_ARRAY
 	bool           read_int_array();
 	void           write_int_array(char c);
 	void           write_int_slice_array(char c);
@@ -194,7 +195,7 @@ public:
 	void           eval_int_slice(char *s, char *e);
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+#ifdef IO_FLOAT_ARRAY
 	bool           read_float_array();
 	void           write_float_array(char c);
 	void           write_float_slice_array(char c);
@@ -207,7 +208,7 @@ public:
 	void           eval_float_slice(char *s, char *e);
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_ARRAY) != 0
+#ifdef IO_ARRAY
 	void           write_array(char c);
 	void           write_slice_array(char c);
 #endif
@@ -305,7 +306,7 @@ out:
 	return *this;
 }
 
-#if (SERIALINDEX_MODE & SERIALINDEX_STRING) != 0
+#ifdef IO_STRING
 // string
 template<int N>
 IO& IO::add(const char *k, char (&v)[N]) 
@@ -315,7 +316,7 @@ IO& IO::add(const char *k, char (&v)[N])
 
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_INT_ARRAY) != 0
+#ifdef IO_INT_ARRAY
 
 // int-array
 template<int N>
@@ -333,7 +334,7 @@ IO& IO::add(const char *k, int (&v)[N], int theTolerance)
 
 #endif
 
-#if (SERIALINDEX_MODE & SERIALINDEX_FLOAT_ARRAY) != 0
+#ifdef IO_FLOAT_ARRAY
 
 // float-array
 template<int N>

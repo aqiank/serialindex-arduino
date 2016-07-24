@@ -44,28 +44,24 @@ SerialIndex& SerialIndex::begin(long theBaudrate, int theCapacity, int theBuffer
 	return *this;
 }
 
-SerialIndex& SerialIndex::io(const char *k, bool theIn, bool theOut) 
+void SerialIndex::update(void)
 {
-	// TODO
-	return *this;
+#ifdef SERIALINDEX_READ
+	if ((mode & Mode::Read) != 0)
+		in();
+#endif
+
+#ifdef SERIALINDEX_WRITE
+	if ((mode & Mode::Write) != 0)
+		out();
+#endif
 }
 
+#ifdef SERIALINDEX_READ
 SerialIndex& SerialIndex::in()
 {
 	while (serial.available())
 		IO::write(serial.read());
-
-	return *this;
-}
-
-SerialIndex& SerialIndex::out()
-{
-	while (IO::check_value_updates()) {
-		while (IO::available())
-			Serial.write(IO::read());
-	}
-
-	IO::reset_context();
 
 	return *this;
 }
@@ -79,6 +75,20 @@ SerialIndex& SerialIndex::read(bool b)
 
 	return *this;
 }
+#endif
+
+#ifdef SERIALINDEX_WRITE
+SerialIndex& SerialIndex::out()
+{
+	while (IO::check_value_updates()) {
+		while (IO::available())
+			Serial.write(IO::read());
+	}
+
+	IO::reset_context();
+
+	return *this;
+}
 
 SerialIndex& SerialIndex::write(bool b)
 {
@@ -89,14 +99,6 @@ SerialIndex& SerialIndex::write(bool b)
 
 	return *this;
 }
-
-void SerialIndex::update(void)
-{
-	if ((mode & Mode::Read) != 0)
-		in();
-
-	if ((mode & Mode::Write) != 0)
-		out();
-}
+#endif
 
 SerialIndex Index(Serial);
