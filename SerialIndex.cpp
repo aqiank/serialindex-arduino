@@ -108,10 +108,8 @@ SerialIndex& SerialIndex::in(bool b)
 #ifdef SERIALINDEX_WRITE
 SerialIndex& SerialIndex::out()
 {
-	while (SerialIndex::check_value_updates()) {
-		while (SerialIndex::available())
-			Serial.write(SerialIndex::write());
-	}
+	while (SerialIndex::write())
+		;
 
 	SerialIndex::reset_context();
 
@@ -189,7 +187,7 @@ out:
 }
 
 #ifdef SERIALINDEX_WRITE
-bool SerialIndex::check_value_updates()
+bool SerialIndex::write()
 {
 	if (ikey == SIZE_MAX)
 		ikey = 0;
@@ -238,28 +236,6 @@ bool SerialIndex::check_value_updates()
 	ikey++;
 	return true;
 }
-
-size_t SerialIndex::available()
-{
-	size_t d = nbuffer - ibuffer;
-
-	if (d == 0) {
-		nbuffer = 0;
-		ibuffer = 0;
-	}
-
-	return d;
-}
-
-char SerialIndex::write()
-{
-	if (ibuffer >= nbuffer) {
-		ikey = 0;
-		return 0;
-	}
-
-	return buffer[ibuffer++];
-}
 #endif
 
 #ifdef SERIALINDEX_INT
@@ -271,9 +247,10 @@ bool SerialIndex::write_int()
 	int *before         = (int *) values[ikey].before;
 
 	if (abs(*now - *before) >= tolerance) {
-		snprintf(buffer, BUFFERSIZE, "%s%c%d%s", keys[ikey], KV_DELIMITER, *now, EOL);
-		nbuffer = strlen(buffer);
-		*before = *now;
+		Serial.print(keys[ikey]);
+		Serial.print(KV_DELIMITER);
+		Serial.print(*now);
+		Serial.print(EOL);
 		return true;
 	}
 
@@ -325,29 +302,10 @@ bool SerialIndex::write_float()
 	float *before         = (float *) values[ikey].before;
 
 	if (fabs(*now - *before) >= tolerance) {
-#if defined(__AVR_ATmega8__)    || \
-    defined(__AVR_ATmega8U2__)  || \
-    defined(__AVR_ATmega168__)  || \
-    defined(__AVR_ATmega32U4__) || \
-    defined(__AVR_ATmega328__)  || \
-    defined(__AVR_ATmega328P__) || \
-    defined(__AVR_ATmega1280__) || \
-    defined(__AVR_ATmega2560__)
-
-		// Some AVR processors don't support float standard C formatting, so we have to use AVR-specific stuff
-
-		char now_str[9];
-		dtostrf(*now, 8, 6, now_str);
-		snprintf(buffer, BUFFERSIZE, "%s%c%s%s", keys[ikey], KV_DELIMITER, now_str, EOL);
-
-#else
-		snprintf(buffer, BUFFERSIZE, "%s%c%f%s", keys[ikey], KV_DELIMITER, *now, EOL);
-#endif
-
-		nbuffer = strlen(buffer);
-
-		*before = *now;
-
+		Serial.print(keys[ikey]);
+		Serial.print(KV_DELIMITER);
+		Serial.print(*now);
+		Serial.print(EOL);
 		return true;
 	}
 
@@ -403,9 +361,10 @@ bool SerialIndex::write_string()
 	char *before        = (char *) values[ikey].before;
 
 	if (strcmp(now, before) != 0) {
-		snprintf(buffer, BUFFERSIZE, "%s%c%s%s", keys[ikey], KV_DELIMITER, now, EOL);
-		strcpy(before, now);
-		nbuffer = strlen(buffer);
+		Serial.print(keys[ikey]);
+		Serial.print(KV_DELIMITER);
+		Serial.print(now);
+		Serial.print(EOL);
 		return true;
 	}
 
@@ -479,16 +438,17 @@ bool SerialIndex::write_int_array()
 	}
 
 	if (changed) {
-		p += snprintf(p, q - p, "%s%c[", keys[ikey], KV_DELIMITER);
+		Serial.print(keys[ikey]);
+		Serial.print(KV_DELIMITER);
+		Serial.print("[");
 
 		for (i = 0; i < length; i++) {
-			p += snprintf(p, q - p, "%d,", now[i]);
-			before[i] = now[i];
+			Serial.print(now[i]);
+			Serial.print(",");
 		}
 
-		p += snprintf(p, q - p, "]%s", EOL);
-
-		nbuffer = strlen(buffer);
+		Serial.print("]");
+		Serial.print(EOL);
 	}
 
 	return changed;
@@ -674,35 +634,17 @@ bool SerialIndex::write_float_array()
 	}
 
 	if (changed) {
-		p += snprintf(p, q - p, "%s%c[", keys[ikey], KV_DELIMITER);
+		Serial.print(keys[ikey]);
+		Serial.print(KV_DELIMITER);
+		Serial.print("[");
 
 		for (i = 0; i < length; i++) {
-
-#if defined(__AVR_ATmega8__)    || \
-    defined(__AVR_ATmega8U2__)  || \
-    defined(__AVR_ATmega168__)  || \
-    defined(__AVR_ATmega32U4__) || \
-    defined(__AVR_ATmega328__)  || \
-    defined(__AVR_ATmega328P__) || \
-    defined(__AVR_ATmega1280__) || \
-    defined(__AVR_ATmega2560__)
-
-			// Some AVR processors don't support float standard C formatting, so we have to use AVR-specific stuff
-
-			char now_str[9];
-			dtostrf(now[i], 8, 6, now_str);
-			p += snprintf(p, q - p, "%s,", now_str);
-
-#else
-			p += snprintf(p, q - p, "%f,", now[i]);
-#endif
-
-			before[i] = now[i];
+			Serial.print(now[i]);
+			Serial.print(",");
 		}
 
-		p += snprintf(p, q - p, "]%s", EOL);
-
-		nbuffer = strlen(buffer);
+		Serial.print("]");
+		Serial.print(EOL);
 	}
 
 	return changed;

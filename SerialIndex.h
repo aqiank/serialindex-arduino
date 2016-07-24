@@ -185,8 +185,6 @@ public:
 	// function
 	SerialIndex&      listen(const char *k, void (*v)(void));
 
-	bool              check_value_updates();
-	size_t            available();
 	void              reset_context(void);
 
 #ifdef SERIALINDEX_READ
@@ -195,7 +193,7 @@ public:
 #endif
 
 #ifdef SERIALINDEX_WRITE
-	char              write();
+	bool              write();
 	char              write(char c);
 #endif
 
