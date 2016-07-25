@@ -10,10 +10,10 @@
 
 // comment out one or more of the following flags to disable certain types
 #define SERIALINDEX_INT
-#define SERIALINDEX_FLOAT
-#define SERIALINDEX_STRING
-#define SERIALINDEX_INT_ARRAY
-#define SERIALINDEX_FLOAT_ARRAY
+//#define SERIALINDEX_FLOAT
+//#define SERIALINDEX_STRING
+//#define SERIALINDEX_INT_ARRAY
+//#define SERIALINDEX_FLOAT_ARRAY
 
 #if defined(SERIALINDEX_INT_ARRAY) || defined(SERIALINDEX_FLOAT_ARRAY)
 #define SERIALINDEX_ARRAY
@@ -21,7 +21,7 @@
 
 // comment out one of the following flags to disable read or write capability
 #define SERIALINDEX_READ
-#define SERIALINDEX_WRITE
+//#define SERIALINDEX_WRITE
 
 enum Mode {
 	Read = 1,
@@ -137,12 +137,12 @@ public:
 
 #ifdef SERIALINDEX_READ
 	SerialIndex&      in();
-	SerialIndex&      in(bool);
+	SerialIndex&      read(bool);
 #endif
 
 #ifdef SERIALINDEX_WRITE
 	SerialIndex&      out();
-	SerialIndex&      out(bool);
+	SerialIndex&      write(bool);
 #endif
 
 #ifdef SERIALINDEX_INT
@@ -188,13 +188,11 @@ public:
 	void              reset_context(void);
 
 #ifdef SERIALINDEX_READ
-	char              read();
-	void              read(char c);
+	void              read_input(char c);
 #endif
 
 #ifdef SERIALINDEX_WRITE
-	bool              write();
-	char              write(char c);
+	bool              write_output();
 #endif
 
 #ifdef SERIALINDEX_INT

@@ -89,12 +89,12 @@ void SerialIndex::update(void)
 SerialIndex& SerialIndex::in()
 {
 	while (serial.available())
-		SerialIndex::read(serial.read());
+		SerialIndex::read_input(serial.read());
 
 	return *this;
 }
 
-SerialIndex& SerialIndex::in(bool b)
+SerialIndex& SerialIndex::read(bool b)
 {
 	if (b)
 		mode |= Mode::Read;
@@ -108,7 +108,7 @@ SerialIndex& SerialIndex::in(bool b)
 #ifdef SERIALINDEX_WRITE
 SerialIndex& SerialIndex::out()
 {
-	while (SerialIndex::write())
+	while (SerialIndex::write_output())
 		;
 
 	SerialIndex::reset_context();
@@ -116,7 +116,7 @@ SerialIndex& SerialIndex::out()
 	return *this;
 }
 
-SerialIndex& SerialIndex::out(bool b)
+SerialIndex& SerialIndex::write(bool b)
 {
 	if (b)
 		mode |= Mode::Write;
@@ -187,7 +187,7 @@ out:
 }
 
 #ifdef SERIALINDEX_WRITE
-bool SerialIndex::write()
+bool SerialIndex::write_output()
 {
 	if (ikey == SIZE_MAX)
 		ikey = 0;
@@ -811,7 +811,7 @@ void SerialIndex::eval_float_slice(char *s, char *e)
 #endif
 
 #ifdef SERIALINDEX_READ
-void SerialIndex::read(char c)
+void SerialIndex::read_input(char c)
 {
 	buffer[ibuffer++] = c;
 	if (ibuffer >= BUFFERSIZE) {
