@@ -251,6 +251,7 @@ bool SerialIndex::write_int()
 		Serial.print(KV_DELIMITER);
 		Serial.print(*now);
 		Serial.print(EOL);
+		*before = *now;
 		return true;
 	}
 
@@ -306,6 +307,7 @@ bool SerialIndex::write_float()
 		Serial.print(KV_DELIMITER);
 		Serial.print(*now);
 		Serial.print(EOL);
+		*before = *now;
 		return true;
 	}
 
@@ -365,6 +367,7 @@ bool SerialIndex::write_string()
 		Serial.print(KV_DELIMITER);
 		Serial.print(now);
 		Serial.print(EOL);
+		strcpy(before, now);
 		return true;
 	}
 
@@ -445,6 +448,7 @@ bool SerialIndex::write_int_array()
 		for (i = 0; i < length; i++) {
 			Serial.print(now[i]);
 			Serial.print(",");
+			before[i] = now[i];
 		}
 
 		Serial.print("]");
@@ -641,6 +645,7 @@ bool SerialIndex::write_float_array()
 		for (i = 0; i < length; i++) {
 			Serial.print(now[i]);
 			Serial.print(",");
+			before[i] = now[i];
 		}
 
 		Serial.print("]");
