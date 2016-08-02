@@ -5,11 +5,8 @@ static const char   EOL[]                       = "\r\n";
 static const char   SLICE_DELIMITER             = '=';
 static const size_t EOL_LEN                     = LEN(EOL) - 1;
 
-SerialIndex::SerialIndex(Stream &s) :
-	serial(s)
+SerialIndex::SerialIndex()
 {
-	begin();
-
 	mode       = 0;
 	context    = Context::Key;
 	capacity   = CAPACITY == SIZE_MAX ? SIZE_MAX - 1 : CAPACITY;
@@ -21,6 +18,9 @@ SerialIndex::SerialIndex(Stream &s) :
 	nbuffer    = 0;
 	ikey       = SIZE_MAX;
 	nkeys      = 0;
+
+	inputFunc  = NULL;
+	outputFunc = NULL;
 
 	values     = (Val *) malloc(sizeof(*values) * capacity);
 	memset(values, 0, sizeof(*values) * capacity);
@@ -41,35 +41,25 @@ SerialIndex::~SerialIndex()
 	delete functions;
 }
 
+SerialIndex& SerialIndex::setSerial(Stream &stream)
+{
+	serial = &stream;
+}
+
+SerialIndex& SerialIndex::setInputFunc(InputFunc fn)
+{
+	inputFunc = fn;
+}
+
+SerialIndex& SerialIndex::setOutputFunc(OutputFunc fn)
+{
+	outputFunc = fn;
+}
+
 SerialIndex& SerialIndex::ping(char *k)
 {
 	// TODO
 	return *this; 
-}
-
-SerialIndex& SerialIndex::begin(void)
-{
-	return begin(BAUDRATE, CAPACITY, BUFFERSIZE);
-}
-
-SerialIndex& SerialIndex::begin(long theBaudrate)
-{
-	return begin(theBaudrate, CAPACITY, BUFFERSIZE);
-}
-
-SerialIndex& SerialIndex::begin(long theBaudrate, int theCapacity)
-{
-	return begin(theBaudrate, theCapacity, BUFFERSIZE);
-}
-
-SerialIndex& SerialIndex::begin(long theBaudrate, int theCapacity, int theBufferSize)
-{
-	Serial.begin(theBaudrate);
-	serial = Serial;
-
-	// TODO
-
-	return *this;
 }
 
 void SerialIndex::update(void)
@@ -88,8 +78,23 @@ void SerialIndex::update(void)
 #ifdef SERIALINDEX_READ
 SerialIndex& SerialIndex::in()
 {
-	while (serial.available())
-		SerialIndex::read_input(serial.read());
+	if (inputFunc) {
+		char *buf = NULL;
+		bool should_delete;
+		int len;
+		int i;
+
+		should_delete = inputFunc(&buf, &len);
+
+		for (i = 0; i < len; i++)
+			SerialIndex::read_input(buf[i]);
+
+		if (should_delete)
+			delete buf; 
+	} else {
+		while (serial->available())
+			SerialIndex::read_input(serial->read());
+	}
 
 	return *this;
 }
@@ -148,7 +153,8 @@ SerialIndex& SerialIndex::add(const char *k, int &v)
 // float
 SerialIndex& SerialIndex::add(const char *k, float &v, float theTolerance)
 {
-	return add(k, v, Type::Float);
+	Tolerance tolerance = { f: theTolerance };
+	return add(k, v, Type::Float, tolerance);
 }
 
 SerialIndex& SerialIndex::add(const char *k, float &v) 
@@ -246,12 +252,15 @@ bool SerialIndex::write_int()
 	const int *now      = (int *) values[ikey].now;
 	int *before         = (int *) values[ikey].before;
 
-	if (abs(*now - *before) >= tolerance) {
-		Serial.print(keys[ikey]);
-		Serial.print(KV_DELIMITER);
-		Serial.print(*now);
-		Serial.print(EOL);
-		*before = *now;
+	if (abs(*now - *before) > tolerance) {
+		if (outputFunc) {
+			outputFunc(keys[ikey], KV_DELIMITER, now, EOL, Type::Int, 0);
+		} else {
+			serial->print(keys[ikey]);
+			serial->print(KV_DELIMITER);
+			serial->print(*now);
+			serial->print(EOL);
+		}
 		return true;
 	}
 
@@ -284,12 +293,19 @@ ValidateResult SerialIndex::validate_int(char *s, char *e)
 	return ValidateResult::Ok;
 }
 
-void SerialIndex::eval_int(char *s, char *e)
+bool SerialIndex::eval_int(char *s, char *e)
 {
+	const int tolerance = values[ikey].tolerance.i;
 	int *now = (int *) values[ikey].now;
 	int *before = (int *) values[ikey].before;
 
-	*before = *now = atois(s, e);
+	*now = atois(s, e);
+	if (abs(*now - *before) >= tolerance) {
+		*before = *now;
+		return true;
+	}
+
+	return false;
 }
 #endif
 #endif
@@ -303,10 +319,14 @@ bool SerialIndex::write_float()
 	float *before         = (float *) values[ikey].before;
 
 	if (fabs(*now - *before) >= tolerance) {
-		Serial.print(keys[ikey]);
-		Serial.print(KV_DELIMITER);
-		Serial.print(*now);
-		Serial.print(EOL);
+		if (outputFunc) {
+			outputFunc(keys[ikey], KV_DELIMITER, now, EOL, Type::Float, 0);
+		} else {
+			serial->print(keys[ikey]);
+			serial->print(KV_DELIMITER);
+			serial->print(*now);
+			serial->print(EOL);
+		}
 		*before = *now;
 		return true;
 	}
@@ -345,12 +365,19 @@ ValidateResult SerialIndex::validate_float(char *s, char *e)
 	return ValidateResult::Ok;
 }
 
-void SerialIndex::eval_float(char *s, char *e)
+bool SerialIndex::eval_float(char *s, char *e)
 {
+	const float tolerance = values[ikey].tolerance.f;
 	float *now = (float *) values[ikey].now;
 	float *before = (float *) values[ikey].before;
-	
-	*before = *now = strtods(s, e, NULL);
+
+	*now = strtods(s, e, NULL);
+	if (fabs(*now - *before) >= tolerance) {
+		*before = *now;
+		return true;
+	}
+
+	return false;
 }
 #endif
 #endif
@@ -363,10 +390,14 @@ bool SerialIndex::write_string()
 	char *before        = (char *) values[ikey].before;
 
 	if (strcmp(now, before) != 0) {
-		Serial.print(keys[ikey]);
-		Serial.print(KV_DELIMITER);
-		Serial.print(now);
-		Serial.print(EOL);
+		if (outputFunc) {
+			outputFunc(keys[ikey], KV_DELIMITER, now, EOL, Type::String, 0);
+		} else {
+			serial->print(keys[ikey]);
+			serial->print(KV_DELIMITER);
+			serial->print(now);
+			serial->print(EOL);
+		}
 		strcpy(before, now);
 		return true;
 	}
@@ -404,7 +435,7 @@ ValidateResult SerialIndex::validate_string(char *s, char *e)
 	return ValidateResult::Ok;
 }
 
-void SerialIndex::eval_string(char *s, char *e)
+bool SerialIndex::eval_string(char *s, char *e)
 {
 	char *now = (char *) values[ikey].now;
 	char *before = (char *) values[ikey].before;
@@ -416,7 +447,13 @@ void SerialIndex::eval_string(char *s, char *e)
 
 	*e = 0;
 	strcpy(now, s);
-	strcpy(before, s);
+
+	if (strcmp(now, before) != 0) {
+		strcpy(before, s);
+		return true;
+	}
+
+	return false;
 }
 #endif
 #endif
@@ -426,7 +463,7 @@ void SerialIndex::eval_string(char *s, char *e)
 bool SerialIndex::write_int_array()
 {
 	const size_t length = values[ikey].length;
-	const int tolerance = values[ikey].tolerance.f;
+	const int tolerance = values[ikey].tolerance.i;
 	const int *now      = (int *) values[ikey].now;
 	int *before         = (int *) values[ikey].before;
 	bool changed        = false;
@@ -435,24 +472,29 @@ bool SerialIndex::write_int_array()
 
 	for (i = 0; i < length; i++) {
 		if (abs(*(now + i) - *(before + i)) >= tolerance) {
+			Serial.println("changed");
 			changed = true;
 			break;
 		}
 	}
 
 	if (changed) {
-		Serial.print(keys[ikey]);
-		Serial.print(KV_DELIMITER);
-		Serial.print("[");
+		if (outputFunc) {
+			outputFunc(keys[ikey], KV_DELIMITER, now, EOL, Type::IntArray, length);
+		} else {
+			serial->print(keys[ikey]);
+			serial->print(KV_DELIMITER);
+			serial->print("[");
 
-		for (i = 0; i < length; i++) {
-			Serial.print(now[i]);
-			Serial.print(",");
-			before[i] = now[i];
+			for (i = 0; i < length; i++) {
+				serial->print(now[i]);
+				serial->print(",");
+				before[i] = now[i];
+			}
 		}
 
-		Serial.print("]");
-		Serial.print(EOL);
+		serial->print("]");
+		serial->print(EOL);
 	}
 
 	return changed;
@@ -544,53 +586,70 @@ invalid:
 	return ValidateResult::Invalid;
 }
 
-void SerialIndex::eval_int_array(char *s, char *e)
+bool SerialIndex::eval_int_array(char *s, char *e)
 {
 	char *p, *q;
 	size_t i = 0;
+	bool value_changed = false;
 
 	for (p = q = s; q < e; q++) {
 		if (*q == ',' || *q == ']') {
-			eval_int_array_nth(p, q, i);
+			if (eval_int_array_nth(p, q, i))
+				value_changed = true;
 			p = q + 1;
 			i++;
 		}
 	}
+
+	return value_changed;
 }
 
-void SerialIndex::eval_int_array_nth(char *s, char *e, size_t i)
+bool SerialIndex::eval_int_array_nth(char *s, char *e, size_t i)
 {
+	const int tolerance = values[ikey].tolerance.i;
 	int *now = (int *) values[ikey].now;
 	int *before = (int *) values[ikey].before;
 
 	if (*s == ']' && *e == ']')
-		return;
+		return false;
 
-	before[i] = now[i] = atois(s, e);
+	now[i] = atois(s, e);
+	if (abs(now[i] - before[i]) >= tolerance) {
+		before[i] = now[i];
+		return true;
+	}
+
+	return false;
 }
 
-void SerialIndex::eval_int_slice_array(char *s, char *e)
+bool SerialIndex::eval_int_slice_array(char *s, char *e)
 {
 	char *p, *q;
 	size_t i = 0;
+	bool value_changed = false;
 
 	for (p = q = s; q < e; q++) {
 		if (*q == ',' || *q == '}') {
-			eval_int_slice(p, q);
+			if (eval_int_slice(p, q))
+				value_changed = true;
 			p = q + 1;
 			i++;
 		}
 	}
+
+	return value_changed;
 }
 
-void SerialIndex::eval_int_slice(char *s, char *e)
+bool SerialIndex::eval_int_slice(char *s, char *e)
 {
+	const int tolerance = values[ikey].tolerance.i;
 	char *p, *dp = 0, *rdp = 0;
 	int *now = (int *) values[ikey].now;
 	int *before = (int *) values[ikey].before;
 	int value = 0;
 	size_t start = 0, end = 0;
 	size_t i;
+	bool value_changed = false;
 
 	for (p = s; p < e; p++) {
 		if (*p == SLICE_DELIMITER)
@@ -612,8 +671,15 @@ void SerialIndex::eval_int_slice(char *s, char *e)
 
 	value = atois(dp + 1, e);
 
-	for (i = start; i < end; i++)
-		before[i] = now[i] = value;
+	for (i = start; i < end; i++) {
+		now[i] = value;
+		if (abs(now[i] - before[i]) >= tolerance) {
+			before[i] = now[i];
+			value_changed = true;
+		}
+	}
+
+	return value_changed;
 }
 #endif
 #endif
@@ -638,18 +704,22 @@ bool SerialIndex::write_float_array()
 	}
 
 	if (changed) {
-		Serial.print(keys[ikey]);
-		Serial.print(KV_DELIMITER);
-		Serial.print("[");
+		if (outputFunc) {
+			outputFunc(keys[ikey], KV_DELIMITER, now, EOL, Type::FloatArray, length);
+		} else {
+			serial->print(keys[ikey]);
+			serial->print(KV_DELIMITER);
+			serial->print("[");
 
-		for (i = 0; i < length; i++) {
-			Serial.print(now[i]);
-			Serial.print(",");
-			before[i] = now[i];
+			for (i = 0; i < length; i++) {
+				serial->print(now[i]);
+				serial->print(",");
+				before[i] = now[i];
+			}
+
+			serial->print("]");
+			serial->print(EOL);
 		}
-
-		Serial.print("]");
-		Serial.print(EOL);
 	}
 
 	return changed;
@@ -688,7 +758,6 @@ ValidateResult SerialIndex::validate_float_array(char *s, char *e)
 		if (*q == ',' || *q == ']') {
 			if (validate_float(pp, q) != ValidateResult::Ok)
 				return ValidateResult::Invalid;
-
 			pp = q + 1;
 			i++;
 		}
@@ -706,7 +775,6 @@ ValidateResult SerialIndex::validate_float_slice_array(char *s, char *e)
 		if (*q == ',' || *q == '}') {
 			if (validate_float_slice(pp, q) != ValidateResult::Ok)
 				return ValidateResult::Invalid;
-
 			pp = q + 1;
 			i++;
 		}
@@ -741,53 +809,70 @@ invalid:
 	return ValidateResult::Invalid;
 }
 
-void SerialIndex::eval_float_array(char *s, char *e)
+bool SerialIndex::eval_float_array(char *s, char *e)
 {
 	char *p, *q;
 	size_t i = 0;
+	bool value_changed = false;
 
 	for (p = q = s; q < e; q++) {
 		if (*q == ',' || *q == ']') {
-			eval_float_array_nth(p, q, i);
+			if (eval_float_array_nth(p, q, i))
+				value_changed = true;
 			p = q + 1;
 			i++;
 		}
 	}
+
+	return value_changed;
 }
 
-void SerialIndex::eval_float_array_nth(char *s, char *e, size_t i)
+bool SerialIndex::eval_float_array_nth(char *s, char *e, size_t i)
 {
+	const float tolerance = values[ikey].tolerance.f;
 	float *now = (float *) values[ikey].now;
 	float *before = (float *) values[ikey].before;
 
 	if (*s == ']' && *e == ']')
-		return;
+		return false;
 
-	before[i] = now[i] = strtods(s, e, NULL);
+	now[i] = strtods(s, e, NULL);
+	if (fabs(now[i] - before[i]) >= tolerance) {
+		before[i] = now[i];
+		return true;
+	}
+
+	return false;
 }
 
-void SerialIndex::eval_float_slice_array(char *s, char *e)
+bool SerialIndex::eval_float_slice_array(char *s, char *e)
 {
 	char *p, *q;
 	size_t i = 0;
+	bool value_changed = false;
 
 	for (p = q = s; q < e; q++) {
 		if (*q == ',' || *q == '}') {
-			eval_float_slice(p, q);
+			if (eval_float_slice(p, q))
+				value_changed = true;
 			p = q + 1;
 			i++;
 		}
 	}
+
+	return value_changed;
 }
 
-void SerialIndex::eval_float_slice(char *s, char *e)
+bool SerialIndex::eval_float_slice(char *s, char *e)
 {
+	const float tolerance = values[ikey].tolerance.f;
 	char *p, *dp = 0, *rdp = 0;
 	float *now = (float *) values[ikey].now;
 	float *before = (float *) values[ikey].before;
 	float value = 0;
 	size_t start = 0, end = 0;
 	size_t i;
+	bool value_changed = true;
 
 	for (p = s; p < e; p++) {
 		if (*p == SLICE_DELIMITER)
@@ -809,8 +894,15 @@ void SerialIndex::eval_float_slice(char *s, char *e)
 
 	value = strtods(dp + 1, e, NULL);
 
-	for (i = start; i < end; i++)
-		before[i] = now[i] = value;
+	for (i = start; i < end; i++) {
+		now[i] = value;
+		if (fabs(now[i] - before[i]) >= tolerance) {
+			before[i] = now[i];
+			value_changed = true;
+		}
+	}
+
+	return value_changed;
 }
 #endif
 #endif
@@ -1012,43 +1104,45 @@ void SerialIndex::read_skip(char c)
 
 void SerialIndex::eval(char *s, char *e)
 {
+	bool value_changed = false;
+
 	switch (context) {
 
 #ifdef SERIALINDEX_INT
 	case Context::IntValue:
-		eval_int(s, e);
+		value_changed = eval_int(s, e);
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT
 	case Context::FloatValue:
-		eval_float(s, e);
+		value_changed = eval_float(s, e);
 		break;
 #endif
 
 #ifdef SERIALINDEX_STRING
 	case Context::StringValue:
-		eval_string(s, e);
+		value_changed = eval_string(s, e);
 		break;
 #endif
 
 #ifdef SERIALINDEX_INT_ARRAY
 	case Context::IntArrayValue:
-		eval_int_array(s, e);
+		value_changed = eval_int_array(s, e);
 		break;
 
 	case Context::IntSliceArrayValue:
-		eval_int_slice_array(s, e);
+		value_changed = eval_int_slice_array(s, e);
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT_ARRAY
 	case Context::FloatArrayValue:
-		eval_float_array(s, e);
+		value_changed = eval_float_array(s, e);
 		break;
 
 	case Context::FloatSliceArrayValue:
-		eval_float_slice_array(s, e);
+		value_changed = eval_float_slice_array(s, e);
 		break;
 #endif
 
@@ -1056,7 +1150,7 @@ void SerialIndex::eval(char *s, char *e)
 		return;
 	}
 
-	if (functions[ikey])
+	if (value_changed && functions[ikey])
 		functions[ikey]();
 
 	reset_context();
@@ -1096,5 +1190,3 @@ size_t SerialIndex::find_key(const char *s)
 	return SIZE_MAX;
 }
 #endif
-
-SerialIndex Index(Serial);

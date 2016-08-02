@@ -10,10 +10,10 @@
 
 // comment out one or more of the following flags to disable certain types
 #define SERIALINDEX_INT
-//#define SERIALINDEX_FLOAT
-//#define SERIALINDEX_STRING
-//#define SERIALINDEX_INT_ARRAY
-//#define SERIALINDEX_FLOAT_ARRAY
+#define SERIALINDEX_FLOAT
+#define SERIALINDEX_STRING
+#define SERIALINDEX_INT_ARRAY
+#define SERIALINDEX_FLOAT_ARRAY
 
 #if defined(SERIALINDEX_INT_ARRAY) || defined(SERIALINDEX_FLOAT_ARRAY)
 #define SERIALINDEX_ARRAY
@@ -21,14 +21,12 @@
 
 // comment out one of the following flags to disable read or write capability
 #define SERIALINDEX_READ
-//#define SERIALINDEX_WRITE
+#define SERIALINDEX_WRITE
 
 enum Mode {
 	Read = 1,
 	Write = 2,
 };
-
-typedef void (*Function)(void);
 
 union Tolerance {
 	int   i;
@@ -119,20 +117,19 @@ enum ValidateResult {
 	Invalid,
 };
 
+typedef void (*Function)(void);
+typedef bool (*InputFunc)(char **data, int *len);
+typedef int (*OutputFunc)(const char *key, char delimiter, const void *value, const char *eol, Type type, size_t length);
 
-class SerialIndex
-{
+class SerialIndex {
 public:
-	SerialIndex(Stream &s);
+	SerialIndex();
 	~SerialIndex();
 
+	SerialIndex&      setSerial(Stream &stream);
+	SerialIndex&      setInputFunc(InputFunc fn);
+	SerialIndex&      setOutputFunc(OutputFunc fn);
 	SerialIndex&      ping(char *k);
-
-	SerialIndex&      begin(void);
-	SerialIndex&      begin(long);
-	SerialIndex&      begin(long, int);
-	SerialIndex&      begin(long, int, int);
-
 	void              update(void);
 
 #ifdef SERIALINDEX_READ
@@ -202,7 +199,7 @@ public:
 #ifdef SERIALINDEX_READ
 	void              read_int(char c);
 	ValidateResult    validate_int(char *s, char *e);
-	void              eval_int(char *s, char *e);
+	bool              eval_int(char *s, char *e);
 #endif
 #endif
 
@@ -213,7 +210,7 @@ public:
 #ifdef SERIALINDEX_READ
 	void              read_float(char c);
 	ValidateResult    validate_float(char *s, char *e);
-	void              eval_float(char *s, char *e);
+	bool              eval_float(char *s, char *e);
 #endif
 #endif
 
@@ -224,7 +221,7 @@ public:
 #ifdef SERIALINDEX_READ
 	void              read_string(char c);
 	ValidateResult    validate_string(char *s, char *e);
-	void              eval_string(char *s, char *e);
+	bool              eval_string(char *s, char *e);
 #endif
 #endif
 
@@ -238,10 +235,10 @@ public:
 	ValidateResult    validate_int_array(char *s, char *e);
 	ValidateResult    validate_int_slice_array(char *s, char *e);
 	ValidateResult    validate_int_slice(char *s, char *e);
-	void              eval_int_array(char *s, char *e);
-	void              eval_int_array_nth(char *s, char *e, size_t i);
-	void              eval_int_slice_array(char *s, char *e);
-	void              eval_int_slice(char *s, char *e);
+	bool              eval_int_array(char *s, char *e);
+	bool              eval_int_array_nth(char *s, char *e, size_t i);
+	bool              eval_int_slice_array(char *s, char *e);
+	bool              eval_int_slice(char *s, char *e);
 #endif
 #endif
 
@@ -255,10 +252,10 @@ public:
 	ValidateResult    validate_float_array(char *s, char *e);
 	ValidateResult    validate_float_slice_array(char *s, char *e);
 	ValidateResult    validate_float_slice(char *s, char *e);
-	void              eval_float_array(char *s, char *e);
-	void              eval_float_array_nth(char *s, char *e, size_t i);
-	void              eval_float_slice_array(char *s, char *e);
-	void              eval_float_slice(char *s, char *e);
+	bool              eval_float_array(char *s, char *e);
+	bool              eval_float_array_nth(char *s, char *e, size_t i);
+	bool              eval_float_slice_array(char *s, char *e);
+	bool              eval_float_slice(char *s, char *e);
 #endif
 #endif
 
@@ -276,6 +273,8 @@ public:
 #endif
 
 private:
+	Stream *          serial;
+	int               mode;
 	const char **     keys;
 	Type *            types;
 	Val *             values;
@@ -288,6 +287,9 @@ private:
 	size_t            nkeys;
 	size_t            capacity;
 
+	InputFunc         inputFunc;
+	OutputFunc        outputFunc;
+
 	size_t            find_key(const char *s);
 	bool              is_eol();
 
@@ -299,10 +301,6 @@ private:
 
 	template<typename T, int N>
 	SerialIndex&      add(const char *k, T (&v)[N], Type t, Tolerance tolerance);
-
-private:
-	Stream&           serial;
-	int               mode;
 };
 
 // generic
@@ -410,7 +408,5 @@ SerialIndex& SerialIndex::add(const char *k, float (&v)[N], float theTolerance)
 }
 
 #endif
-
-extern SerialIndex Index;
 
 #endif // SERIAL_INDEX_H
