@@ -379,7 +379,8 @@ SerialIndex& SerialIndex::add(const char *k, char (&v)[N])
 template<int N>
 SerialIndex& SerialIndex::add(const char *k, int (&v)[N])
 {
-	return add(k, v, Type::IntArray);
+	Tolerance tolerance = { i: 0 };
+	return add(k, v, Type::IntArray, tolerance);
 }
 
 template<int N>
@@ -397,7 +398,8 @@ SerialIndex& SerialIndex::add(const char *k, int (&v)[N], int theTolerance)
 template<int N>
 SerialIndex& SerialIndex::add(const char *k, float (&v)[N]) 
 {
-	return add(k, v, Type::FloatArray);
+	Tolerance tolerance = { f: 0 };
+	return add(k, v, Type::FloatArray, tolerance);
 }
 
 template<int N>
