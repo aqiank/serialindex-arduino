@@ -286,7 +286,7 @@ ValidateResult SerialIndex::validate_int(char *s, char *e)
 	const char *p;
 
 	for (p = s; p < e; p++) {
-		if (!isdigit(*p))
+		if (!isdigit(*p) && !(p == s && *p == '-'))
 			return ValidateResult::Invalid;
 	}
 
@@ -354,7 +354,7 @@ ValidateResult SerialIndex::validate_float(char *s, char *e)
 	int ndots = 0;
 
 	for (p = s; p < e; p++) {
-		if (isdigit(*p))
+		if (isdigit(*p) || (p == s && *p == '-'))
 			continue;
 		else if (*p == '.' && ndots == 0)
 			ndots++;
@@ -1006,6 +1006,7 @@ void SerialIndex::read_value(char c)
 
 	switch (c) {
 	case '0'...'9':
+	case '-':
 		if (type == Type::Int)
 			context = Context::IntValue;
 #ifdef SERIALINDEX_FLOAT
@@ -1055,6 +1056,7 @@ void SerialIndex::read_array(char c)
 
 	switch (c) {
 	case '0'...'9':
+	case '-':
 		if (type == Type::IntArray)
 			context = Context::IntArrayValue;
 		else if (type == Type::FloatArray)
@@ -1077,6 +1079,7 @@ void SerialIndex::read_slice_array(char c)
 
 	switch (c) {
 	case '0'...'9':
+	case '-':
 		if (type == Type::IntArray)
 			context = Context::IntSliceArrayValue;
 		else if (type == Type::FloatArray)
