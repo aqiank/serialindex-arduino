@@ -488,7 +488,8 @@ bool SerialIndex::write_int_array()
 
 			for (i = 0; i < length; i++) {
 				serial->print(now[i]);
-				serial->print(",");
+				if (i < length - 1)
+					serial->print(",");
 				before[i] = now[i];
 			}
 		}
@@ -713,7 +714,8 @@ bool SerialIndex::write_float_array()
 
 			for (i = 0; i < length; i++) {
 				serial->print(now[i]);
-				serial->print(",");
+				if (i < length - 1)
+					serial->print(",");
 				before[i] = now[i];
 			}
 
