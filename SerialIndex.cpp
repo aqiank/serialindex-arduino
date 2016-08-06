@@ -471,7 +471,6 @@ bool SerialIndex::write_int_array()
 
 	for (i = 0; i < length; i++) {
 		if (abs(*(now + i) - *(before + i)) >= tolerance) {
-			Serial.println("changed");
 			changed = true;
 			break;
 		}
