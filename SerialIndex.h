@@ -282,7 +282,6 @@ private:
 	char *            buffer;
 	Context           context;
 	size_t            ibuffer;
-	size_t            nbuffer;
 	size_t            ikey;
 	size_t            nkeys;
 	size_t            capacity;

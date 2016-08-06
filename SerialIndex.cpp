@@ -15,7 +15,6 @@ SerialIndex::SerialIndex()
 	functions  = new Function[capacity];
 	buffer     = new char[BUFFERSIZE];
 	ibuffer    = 0;
-	nbuffer    = 0;
 	ikey       = SIZE_MAX;
 	nkeys      = 0;
 
