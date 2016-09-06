@@ -182,92 +182,92 @@ public:
 	// function
 	SerialIndex&      listen(const char *k, void (*v)(void));
 
-	void              reset_context(void);
+	void              resetContext(void);
 
 #ifdef SERIALINDEX_READ
-	void              read_input(char c);
+	void              readInput(char c);
 #endif
 
 #ifdef SERIALINDEX_WRITE
-	bool              write_output();
+	bool              writeOutput();
 #endif
 
 #ifdef SERIALINDEX_INT
 #ifdef SERIALINDEX_WRITE
-	bool              write_int();
+	bool              writeInt();
 #endif
 #ifdef SERIALINDEX_READ
-	void              read_int(char c);
-	ValidateResult    validate_int(char *s, char *e);
-	bool              eval_int(char *s, char *e);
+	void              readInt(char c);
+	ValidateResult    validateInt(char *s, char *e);
+	bool              evalInt(char *s, char *e);
 #endif
 #endif
 
 #ifdef SERIALINDEX_FLOAT
 #ifdef SERIALINDEX_WRITE
-	bool              write_float();
+	bool              writeFloat();
 #endif
 #ifdef SERIALINDEX_READ
-	void              read_float(char c);
-	ValidateResult    validate_float(char *s, char *e);
-	bool              eval_float(char *s, char *e);
+	void              readFloat(char c);
+	ValidateResult    validateFloat(char *s, char *e);
+	bool              evalFloat(char *s, char *e);
 #endif
 #endif
 
 #ifdef SERIALINDEX_STRING
 #ifdef SERIALINDEX_WRITE
-	bool              write_string();
+	bool              writeString();
 #endif
 #ifdef SERIALINDEX_READ
-	void              read_string(char c);
-	ValidateResult    validate_string(char *s, char *e);
-	bool              eval_string(char *s, char *e);
+	void              readString(char c);
+	ValidateResult    validateString(char *s, char *e);
+	bool              evalString(char *s, char *e);
 #endif
 #endif
 
 #ifdef SERIALINDEX_INT_ARRAY
 #ifdef SERIALINDEX_WRITE
-	bool              write_int_array();
+	bool              writeIntArray();
 #endif
 #ifdef SERIALINDEX_READ
-	void              read_int_array(char c);
-	void              read_int_slice_array(char c);
-	ValidateResult    validate_int_array(char *s, char *e);
-	ValidateResult    validate_int_slice_array(char *s, char *e);
-	ValidateResult    validate_int_slice(char *s, char *e);
-	bool              eval_int_array(char *s, char *e);
-	bool              eval_int_array_nth(char *s, char *e, size_t i);
-	bool              eval_int_slice_array(char *s, char *e);
-	bool              eval_int_slice(char *s, char *e);
+	void              readIntArray(char c);
+	void              readIntSliceArray(char c);
+	ValidateResult    validateIntArray(char *s, char *e);
+	ValidateResult    validateIntSliceArray(char *s, char *e);
+	ValidateResult    validateIntSlice(char *s, char *e);
+	bool              evalIntArray(char *s, char *e);
+	bool              evalIntArrayNth(char *s, char *e, size_t i);
+	bool              evalIntSliceArray(char *s, char *e);
+	bool              evalIntSlice(char *s, char *e);
 #endif
 #endif
 
 #ifdef SERIALINDEX_FLOAT_ARRAY
 #ifdef SERIALINDEX_WRITE
-	bool              write_float_array();
+	bool              writeFloatArray();
 #endif
 #ifdef SERIALINDEX_READ
-	void              read_float_array(char c);
-	void              read_float_slice_array(char c);
-	ValidateResult    validate_float_array(char *s, char *e);
-	ValidateResult    validate_float_slice_array(char *s, char *e);
-	ValidateResult    validate_float_slice(char *s, char *e);
-	bool              eval_float_array(char *s, char *e);
-	bool              eval_float_array_nth(char *s, char *e, size_t i);
-	bool              eval_float_slice_array(char *s, char *e);
-	bool              eval_float_slice(char *s, char *e);
+	void              readFloatArray(char c);
+	void              readFloatSliceArray(char c);
+	ValidateResult    validateFloatArray(char *s, char *e);
+	ValidateResult    validateFloatSliceArray(char *s, char *e);
+	ValidateResult    validateFloatSlice(char *s, char *e);
+	bool              evalFloatArray(char *s, char *e);
+	bool              evalFloatArrayNth(char *s, char *e, size_t i);
+	bool              evalFloatSliceArray(char *s, char *e);
+	bool              evalFloatSlice(char *s, char *e);
 #endif
 #endif
 
 #ifdef SERIALINDEX_READ
 #ifdef SERIALINDEX_ARRAY
-	void              read_array(char c);
-	void              read_slice_array(char c);
+	void              readArray(char c);
+	void              readSliceArray(char c);
 #endif
 
-	void              read_key(char c);
-	void              read_value(char c);
-	void              read_skip(char c);
+	void              readKey(char c);
+	void              readValue(char c);
+	void              readSkip(char c);
 
 	void              eval(char *s, char *e);
 #endif
@@ -290,8 +290,8 @@ private:
 	InputFunc         inputFunc;
 	OutputFunc        outputFunc;
 
-	size_t            find_key(const char *s);
-	bool              is_eol();
+	size_t            findKey(const char *s);
+	bool              isEOL();
 
 	template<typename T>
 	SerialIndex&      add(const char *k, T &v, Type t);
@@ -310,7 +310,7 @@ SerialIndex& SerialIndex::add(const char *k, T &v, Type t)
 	if (!k || nkeys >= capacity)
 		goto out;
 
-	if (find_key(k) < SIZE_MAX)
+	if (findKey(k) < SIZE_MAX)
 		goto out;
 
 	types[nkeys] = t;
@@ -330,7 +330,7 @@ SerialIndex& SerialIndex::add(const char *k, T &v, Type t, Tolerance tolerance)
 	if (!k || nkeys >= capacity)
 		goto out;
 
-	if (find_key(k) < SIZE_MAX)
+	if (findKey(k) < SIZE_MAX)
 		goto out;
 
 	types[nkeys] = t;
@@ -350,7 +350,7 @@ SerialIndex& SerialIndex::add(const char *k, T (&v)[N], Type t, Tolerance tolera
 	if (!k || nkeys >= capacity)
 		goto out;
 
-	if (find_key(k) < SIZE_MAX)
+	if (findKey(k) < SIZE_MAX)
 		goto out;
 
 	types[nkeys] = t;

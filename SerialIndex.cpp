@@ -80,20 +80,20 @@ SerialIndex& SerialIndex::in()
 {
 	if (inputFunc) {
 		char *buf = NULL;
-		bool should_delete;
+		bool shouldDelete;
 		int len;
 		int i;
 
-		should_delete = inputFunc(&buf, &len);
+		shouldDelete = inputFunc(&buf, &len);
 
 		for (i = 0; i < len; i++)
-			SerialIndex::read_input(buf[i]);
+			SerialIndex::readInput(buf[i]);
 
-		if (should_delete)
+		if (shouldDelete)
 			delete buf; 
 	} else {
 		while (serial->available())
-			SerialIndex::read_input(serial->read());
+			SerialIndex::readInput(serial->read());
 	}
 
 	return *this;
@@ -113,10 +113,10 @@ SerialIndex& SerialIndex::read(bool b)
 #ifdef SERIALINDEX_WRITE
 SerialIndex& SerialIndex::out()
 {
-	while (SerialIndex::write_output())
+	while (SerialIndex::writeOutput())
 		;
 
-	SerialIndex::reset_context();
+	SerialIndex::resetContext();
 
 	return *this;
 }
@@ -182,7 +182,7 @@ SerialIndex& SerialIndex::listen(const char *k, void (*v)(void))
 	if (!k)
 		goto out;
 
-	i = find_key(k);
+	i = findKey(k);
 	if (i == SIZE_MAX)
 		goto out;
 
@@ -193,7 +193,7 @@ out:
 }
 
 #ifdef SERIALINDEX_WRITE
-bool SerialIndex::write_output()
+bool SerialIndex::writeOutput()
 {
 	if (ikey == SIZE_MAX)
 		ikey = 0;
@@ -207,31 +207,31 @@ bool SerialIndex::write_output()
 
 #ifdef SERIALINDEX_INT
 	case Type::Int:
-		write_int();
+		writeInt();
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT
 	case Type::Float:
-		write_float();
+		writeFloat();
 		break;
 #endif
 
 #ifdef SERIALINDEX_STRING
 	case Type::String:
-		write_string();
+		writeString();
 		break;
 #endif
 
 #ifdef SERIALINDEX_INT_ARRAY
 	case Type::IntArray:
-		write_int_array();
+		writeIntArray();
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT_ARRAY
 	case Type::FloatArray:
-		write_float_array();
+		writeFloatArray();
 		break;
 #endif
 
@@ -246,7 +246,7 @@ bool SerialIndex::write_output()
 
 #ifdef SERIALINDEX_INT
 #ifdef SERIALINDEX_WRITE
-bool SerialIndex::write_int()
+bool SerialIndex::writeInt()
 {
 	const int tolerance = values[ikey].tolerance.i;
 	const int *now      = (int *) values[ikey].now;
@@ -269,19 +269,19 @@ bool SerialIndex::write_int()
 #endif
 
 #ifdef SERIALINDEX_READ
-void SerialIndex::read_int(char c)
+void SerialIndex::readInt(char c)
 {
-	if (is_eol()) {
-		if (validate_int(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
+	if (isEOL()) {
+		if (validateInt(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
 			eval(&buffer[0], &buffer[ibuffer - EOL_LEN]);
 			return;
 		}
 
-		reset_context();
+		resetContext();
 	}
 }
 
-ValidateResult SerialIndex::validate_int(char *s, char *e)
+ValidateResult SerialIndex::validateInt(char *s, char *e)
 {
 	const char *p;
 
@@ -293,7 +293,7 @@ ValidateResult SerialIndex::validate_int(char *s, char *e)
 	return ValidateResult::Ok;
 }
 
-bool SerialIndex::eval_int(char *s, char *e)
+bool SerialIndex::evalInt(char *s, char *e)
 {
 	const int tolerance = values[ikey].tolerance.i;
 	int *now = (int *) values[ikey].now;
@@ -312,7 +312,7 @@ bool SerialIndex::eval_int(char *s, char *e)
 
 #ifdef SERIALINDEX_FLOAT
 #ifdef SERIALINDEX_WRITE
-bool SerialIndex::write_float()
+bool SerialIndex::writeFloat()
 {
 	const float tolerance = values[ikey].tolerance.f;
 	const float *now      = (float *) values[ikey].now;
@@ -336,19 +336,19 @@ bool SerialIndex::write_float()
 #endif
 
 #ifdef SERIALINDEX_READ
-void SerialIndex::read_float(char c)
+void SerialIndex::readFloat(char c)
 {
-	if (is_eol()) {
-		if (validate_float(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
+	if (isEOL()) {
+		if (validateFloat(&buffer[0], &buffer[ibuffer - EOL_LEN]) == ValidateResult::Ok) {
 			eval(&buffer[0], &buffer[ibuffer - EOL_LEN]);
 			return;
 		}
 
-		reset_context();
+		resetContext();
 	}
 }
 
-ValidateResult SerialIndex::validate_float(char *s, char *e)
+ValidateResult SerialIndex::validateFloat(char *s, char *e)
 {
 	const char *p;
 	int ndots = 0;
@@ -365,7 +365,7 @@ ValidateResult SerialIndex::validate_float(char *s, char *e)
 	return ValidateResult::Ok;
 }
 
-bool SerialIndex::eval_float(char *s, char *e)
+bool SerialIndex::evalFloat(char *s, char *e)
 {
 	const float tolerance = values[ikey].tolerance.f;
 	float *now = (float *) values[ikey].now;
@@ -384,7 +384,7 @@ bool SerialIndex::eval_float(char *s, char *e)
 
 #ifdef SERIALINDEX_STRING
 #ifdef SERIALINDEX_WRITE
-bool SerialIndex::write_string()
+bool SerialIndex::writeString()
 {
 	const char *now     = (char *) values[ikey].now;
 	char *before        = (char *) values[ikey].before;
@@ -407,10 +407,10 @@ bool SerialIndex::write_string()
 #endif
 
 #ifdef SERIALINDEX_READ
-void SerialIndex::read_string(char c)
+void SerialIndex::readString(char c)
 {
-	if (is_eol()) {
-		switch (validate_string(&buffer[0], &buffer[ibuffer - EOL_LEN])) {
+	if (isEOL()) {
+		switch (validateString(&buffer[0], &buffer[ibuffer - EOL_LEN])) {
 		case ValidateResult::Ok:
 			eval(&buffer[0], &buffer[ibuffer - EOL_LEN]);
 
@@ -418,24 +418,24 @@ void SerialIndex::read_string(char c)
 			return;
 
 		default:
-			reset_context();
+			resetContext();
 		}
 	}
 }
 
-ValidateResult SerialIndex::validate_string(char *s, char *e)
+ValidateResult SerialIndex::validateString(char *s, char *e)
 {
 	const char fc = *s;
-	const bool has_start_quote = fc == '\'' || fc == '"';
-	const bool has_end_quote = e - s > 1 && *(e - 1) == fc;
+	const bool hasStartQuote = fc == '\'' || fc == '"';
+	const bool hasEndQuote = e - s > 1 && *(e - 1) == fc;
 
-	if (has_start_quote && !has_end_quote)
+	if (hasStartQuote && !hasEndQuote)
 		return ValidateResult::Continue;
 
 	return ValidateResult::Ok;
 }
 
-bool SerialIndex::eval_string(char *s, char *e)
+bool SerialIndex::evalString(char *s, char *e)
 {
 	char *now = (char *) values[ikey].now;
 	char *before = (char *) values[ikey].before;
@@ -460,7 +460,7 @@ bool SerialIndex::eval_string(char *s, char *e)
 
 #ifdef SERIALINDEX_INT_ARRAY
 #ifdef SERIALINDEX_WRITE
-bool SerialIndex::write_int_array()
+bool SerialIndex::writeIntArray()
 {
 	const size_t length = values[ikey].length;
 	const int tolerance = values[ikey].tolerance.i;
@@ -503,10 +503,10 @@ bool SerialIndex::write_int_array()
 #endif
 
 #ifdef SERIALINDEX_READ
-void SerialIndex::read_int_array(char c)
+void SerialIndex::readIntArray(char c)
 {
 	if (c == ']') {
-		if (validate_int_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
+		if (validateIntArray(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
 			eval(&buffer[1], &buffer[ibuffer + 1]);
 			return;
 		}
@@ -515,24 +515,24 @@ void SerialIndex::read_int_array(char c)
 	}
 }
 
-void SerialIndex::read_int_slice_array(char c)
+void SerialIndex::readIntSliceArray(char c)
 {
 	if (c == '}') {
-		if (validate_int_slice_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
+		if (validateIntSliceArray(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
 			eval(&buffer[1], &buffer[ibuffer + 1]);
 
 		context = Context::Skip;
 	}
 }
 
-ValidateResult SerialIndex::validate_int_array(char *s, char *e)
+ValidateResult SerialIndex::validateIntArray(char *s, char *e)
 {
 	char *pp, *q;
 	size_t i = 0;
 
 	for (pp = q = s; q < e; q++) {
 		if (*q == ',' || *q == ']') {
-			if (validate_int(pp, q) != ValidateResult::Ok)
+			if (validateInt(pp, q) != ValidateResult::Ok)
 				return ValidateResult::Invalid;
 
 			pp = q + 1;
@@ -543,14 +543,14 @@ ValidateResult SerialIndex::validate_int_array(char *s, char *e)
 	return ValidateResult::Ok;
 }
 
-ValidateResult SerialIndex::validate_int_slice_array(char *s, char *e)
+ValidateResult SerialIndex::validateIntSliceArray(char *s, char *e)
 {
 	char *pp, *q;
 	size_t i = 0;
 
 	for (pp = q = s; q < e; q++) {
 		if (*q == ',' || *q == '}') {
-			if (validate_int_slice(pp, q) != ValidateResult::Ok)
+			if (validateIntSlice(pp, q) != ValidateResult::Ok)
 				return ValidateResult::Invalid;
 
 			pp = q + 1;
@@ -561,7 +561,7 @@ ValidateResult SerialIndex::validate_int_slice_array(char *s, char *e)
 	return ValidateResult::Ok;
 }
 
-ValidateResult SerialIndex::validate_int_slice(char *s, char *e)
+ValidateResult SerialIndex::validateIntSlice(char *s, char *e)
 {
 	char *p;
 	char *dp = 0;
@@ -569,11 +569,11 @@ ValidateResult SerialIndex::validate_int_slice(char *s, char *e)
 
 	for (p = s; p < e; p++) {
 		if (dp)
-			return validate_int(p, e);
+			return validateInt(p, e);
 
 		if (*p == SLICE_DELIMITER) {
 			dp = p;
-		} else if (is_slice_range_delimiter(p)) {
+		} else if (isSliceRangeDelimiter(p)) {
 			if (rdp)
 				goto invalid;
 			rdp = p;
@@ -587,25 +587,25 @@ invalid:
 	return ValidateResult::Invalid;
 }
 
-bool SerialIndex::eval_int_array(char *s, char *e)
+bool SerialIndex::evalIntArray(char *s, char *e)
 {
 	char *p, *q;
 	size_t i = 0;
-	bool value_changed = false;
+	bool valueChanged = false;
 
 	for (p = q = s; q < e; q++) {
 		if (*q == ',' || *q == ']') {
-			if (eval_int_array_nth(p, q, i))
-				value_changed = true;
+			if (evalIntArrayNth(p, q, i))
+				valueChanged = true;
 			p = q + 1;
 			i++;
 		}
 	}
 
-	return value_changed;
+	return valueChanged;
 }
 
-bool SerialIndex::eval_int_array_nth(char *s, char *e, size_t i)
+bool SerialIndex::evalIntArrayNth(char *s, char *e, size_t i)
 {
 	const int tolerance = values[ikey].tolerance.i;
 	int *now = (int *) values[ikey].now;
@@ -623,25 +623,25 @@ bool SerialIndex::eval_int_array_nth(char *s, char *e, size_t i)
 	return false;
 }
 
-bool SerialIndex::eval_int_slice_array(char *s, char *e)
+bool SerialIndex::evalIntSliceArray(char *s, char *e)
 {
 	char *p, *q;
 	size_t i = 0;
-	bool value_changed = false;
+	bool valueChanged = false;
 
 	for (p = q = s; q < e; q++) {
 		if (*q == ',' || *q == '}') {
-			if (eval_int_slice(p, q))
-				value_changed = true;
+			if (evalIntSlice(p, q))
+				valueChanged = true;
 			p = q + 1;
 			i++;
 		}
 	}
 
-	return value_changed;
+	return valueChanged;
 }
 
-bool SerialIndex::eval_int_slice(char *s, char *e)
+bool SerialIndex::evalIntSlice(char *s, char *e)
 {
 	const int tolerance = values[ikey].tolerance.i;
 	char *p, *dp = 0, *rdp = 0;
@@ -650,12 +650,12 @@ bool SerialIndex::eval_int_slice(char *s, char *e)
 	int value = 0;
 	size_t start = 0, end = 0;
 	size_t i;
-	bool value_changed = false;
+	bool valueChanged = false;
 
 	for (p = s; p < e; p++) {
 		if (*p == SLICE_DELIMITER)
 			dp = p;
-		else if (is_slice_range_delimiter(p))
+		else if (isSliceRangeDelimiter(p))
 			rdp = p;
 	}
 
@@ -676,18 +676,18 @@ bool SerialIndex::eval_int_slice(char *s, char *e)
 		now[i] = value;
 		if (abs(now[i] - before[i]) >= tolerance) {
 			before[i] = now[i];
-			value_changed = true;
+			valueChanged = true;
 		}
 	}
 
-	return value_changed;
+	return valueChanged;
 }
 #endif
 #endif
 
 #ifdef SERIALINDEX_FLOAT_ARRAY
 #ifdef SERIALINDEX_WRITE
-bool SerialIndex::write_float_array()
+bool SerialIndex::writeFloatArray()
 {
 	const size_t length   = values[ikey].length;
 	const float tolerance = values[ikey].tolerance.f;
@@ -729,10 +729,10 @@ bool SerialIndex::write_float_array()
 #endif
 
 #ifdef SERIALINDEX_READ
-void SerialIndex::read_float_array(char c)
+void SerialIndex::readFloatArray(char c)
 {
 	if (c == ']') {
-		if (validate_float_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
+		if (validateFloatArray(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok) {
 			eval(&buffer[1], &buffer[ibuffer + 1]);
 			return;
 		}
@@ -741,24 +741,24 @@ void SerialIndex::read_float_array(char c)
 	}
 }
 
-void SerialIndex::read_float_slice_array(char c)
+void SerialIndex::readFloatSliceArray(char c)
 {
 	if (c == '}') {
-		if (validate_float_slice_array(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
+		if (validateFloatSliceArray(&buffer[1], &buffer[ibuffer + 1]) == ValidateResult::Ok)
 			eval(&buffer[1], &buffer[ibuffer + 1]);
 
 		context = Context::Skip;
 	}
 }
 
-ValidateResult SerialIndex::validate_float_array(char *s, char *e)
+ValidateResult SerialIndex::validateFloatArray(char *s, char *e)
 {
 	char *pp, *q;
 	size_t i = 0;
 
 	for (pp = q = s; q < e; q++) {
 		if (*q == ',' || *q == ']') {
-			if (validate_float(pp, q) != ValidateResult::Ok)
+			if (validateFloat(pp, q) != ValidateResult::Ok)
 				return ValidateResult::Invalid;
 			pp = q + 1;
 			i++;
@@ -768,14 +768,14 @@ ValidateResult SerialIndex::validate_float_array(char *s, char *e)
 	return ValidateResult::Ok;
 }
 
-ValidateResult SerialIndex::validate_float_slice_array(char *s, char *e)
+ValidateResult SerialIndex::validateFloatSliceArray(char *s, char *e)
 {
 	char *pp, *q;
 	size_t i = 0;
 
 	for (pp = q = s; q < e; q++) {
 		if (*q == ',' || *q == '}') {
-			if (validate_float_slice(pp, q) != ValidateResult::Ok)
+			if (validateFloatSlice(pp, q) != ValidateResult::Ok)
 				return ValidateResult::Invalid;
 			pp = q + 1;
 			i++;
@@ -785,7 +785,7 @@ ValidateResult SerialIndex::validate_float_slice_array(char *s, char *e)
 	return ValidateResult::Ok;
 }
 
-ValidateResult SerialIndex::validate_float_slice(char *s, char *e)
+ValidateResult SerialIndex::validateFloatSlice(char *s, char *e)
 {
 	char *p;
 	char *dp = 0;
@@ -793,11 +793,11 @@ ValidateResult SerialIndex::validate_float_slice(char *s, char *e)
 
 	for (p = s; p < e; p++) {
 		if (dp)
-			return validate_float(p, e);
+			return validateFloat(p, e);
 
 		if (*p == SLICE_DELIMITER) {
 			dp = p;
-		} else if (is_slice_range_delimiter(p)) {
+		} else if (isSliceRangeDelimiter(p)) {
 			if (rdp)
 				goto invalid;
 			rdp = p;
@@ -811,25 +811,25 @@ invalid:
 	return ValidateResult::Invalid;
 }
 
-bool SerialIndex::eval_float_array(char *s, char *e)
+bool SerialIndex::evalFloatArray(char *s, char *e)
 {
 	char *p, *q;
 	size_t i = 0;
-	bool value_changed = false;
+	bool valueChanged = false;
 
 	for (p = q = s; q < e; q++) {
 		if (*q == ',' || *q == ']') {
-			if (eval_float_array_nth(p, q, i))
-				value_changed = true;
+			if (evalFloatArrayNth(p, q, i))
+				valueChanged = true;
 			p = q + 1;
 			i++;
 		}
 	}
 
-	return value_changed;
+	return valueChanged;
 }
 
-bool SerialIndex::eval_float_array_nth(char *s, char *e, size_t i)
+bool SerialIndex::evalFloatArrayNth(char *s, char *e, size_t i)
 {
 	const float tolerance = values[ikey].tolerance.f;
 	float *now = (float *) values[ikey].now;
@@ -847,25 +847,25 @@ bool SerialIndex::eval_float_array_nth(char *s, char *e, size_t i)
 	return false;
 }
 
-bool SerialIndex::eval_float_slice_array(char *s, char *e)
+bool SerialIndex::evalFloatSliceArray(char *s, char *e)
 {
 	char *p, *q;
 	size_t i = 0;
-	bool value_changed = false;
+	bool valueChanged = false;
 
 	for (p = q = s; q < e; q++) {
 		if (*q == ',' || *q == '}') {
-			if (eval_float_slice(p, q))
-				value_changed = true;
+			if (evalFloatSlice(p, q))
+				valueChanged = true;
 			p = q + 1;
 			i++;
 		}
 	}
 
-	return value_changed;
+	return valueChanged;
 }
 
-bool SerialIndex::eval_float_slice(char *s, char *e)
+bool SerialIndex::evalFloatSlice(char *s, char *e)
 {
 	const float tolerance = values[ikey].tolerance.f;
 	char *p, *dp = 0, *rdp = 0;
@@ -874,12 +874,12 @@ bool SerialIndex::eval_float_slice(char *s, char *e)
 	float value = 0;
 	size_t start = 0, end = 0;
 	size_t i;
-	bool value_changed = true;
+	bool valueChanged = true;
 
 	for (p = s; p < e; p++) {
 		if (*p == SLICE_DELIMITER)
 			dp = p;
-		else if (is_slice_range_delimiter(p))
+		else if (isSliceRangeDelimiter(p))
 			rdp = p;
 	}
 
@@ -900,17 +900,17 @@ bool SerialIndex::eval_float_slice(char *s, char *e)
 		now[i] = value;
 		if (fabs(now[i] - before[i]) >= tolerance) {
 			before[i] = now[i];
-			value_changed = true;
+			valueChanged = true;
 		}
 	}
 
-	return value_changed;
+	return valueChanged;
 }
 #endif
 #endif
 
 #ifdef SERIALINDEX_READ
-void SerialIndex::read_input(char c)
+void SerialIndex::readInput(char c)
 {
 	buffer[ibuffer++] = c;
 	if (ibuffer >= BUFFERSIZE) {
@@ -920,73 +920,73 @@ void SerialIndex::read_input(char c)
 
 	switch (context) {
 	case Context::Key:
-		read_key(c);
+		readKey(c);
 		break;
 
 	case Context::Value:
-		read_value(c);
+		readValue(c);
 		break;
 
 #ifdef SERIALINDEX_INT
 	case Context::IntValue:
-		read_int(c);
+		readInt(c);
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT
 	case Context::FloatValue:
-		read_float(c);
+		readFloat(c);
 		break;
 #endif
 
 #ifdef SERIALINDEX_STRING
 	case Context::StringValue:
-		read_string(c);
+		readString(c);
 		break;
 #endif
 
 #ifdef SERIALINDEX_ARRAY
 	case Context::ArrayValue:
-		read_array(c);
+		readArray(c);
 		break;
 
 	case Context::SliceArrayValue:
-		read_slice_array(c);
+		readSliceArray(c);
 		break;
 #endif
 
 #ifdef SERIALINDEX_INT_ARRAY
 	case Context::IntArrayValue:
-		read_int_array(c);
+		readIntArray(c);
 		break;
 
 	case Context::IntSliceArrayValue:
-		read_int_slice_array(c);
+		readIntSliceArray(c);
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT_ARRAY
 	case Context::FloatArrayValue:
-		read_float_array(c);
+		readFloatArray(c);
 		break;
 
 	case Context::FloatSliceArrayValue:
-		read_float_slice_array(c);
+		readFloatSliceArray(c);
 		break;
 #endif
 
 	case Context::Skip:
-		read_skip(c);
+		readSkip(c);
 		break;
 	}
 }
 
-void SerialIndex::read_key(char c)
+void SerialIndex::readKey(char c)
 {
 	if (c == KV_DELIMITER) {
 		buffer[ibuffer - 1] = 0;
 
-		ikey = find_key(buffer);
+		ikey = findKey(buffer);
 		if (ikey == SIZE_MAX)
 			goto skip;
 
@@ -1002,7 +1002,7 @@ skip:
 	context = Context::Skip;
 }
 
-void SerialIndex::read_value(char c)
+void SerialIndex::readValue(char c)
 {
 	const Type type = types[ikey];
 
@@ -1052,7 +1052,7 @@ skip:
 }
 
 #ifdef SERIALINDEX_ARRAY
-void SerialIndex::read_array(char c)
+void SerialIndex::readArray(char c)
 {
 	const Type type = types[ikey];
 
@@ -1075,7 +1075,7 @@ skip:
 	}
 }
 
-void SerialIndex::read_slice_array(char c)
+void SerialIndex::readSliceArray(char c)
 {
 	const Type type = types[ikey];
 
@@ -1099,55 +1099,55 @@ skip:
 }
 #endif
 
-void SerialIndex::read_skip(char c)
+void SerialIndex::readSkip(char c)
 {
-	if (!is_eol())
+	if (!isEOL())
 		return;
 
-	reset_context();
+	resetContext();
 }
 
 void SerialIndex::eval(char *s, char *e)
 {
-	bool value_changed = false;
+	bool valueChanged = false;
 
 	switch (context) {
 
 #ifdef SERIALINDEX_INT
 	case Context::IntValue:
-		value_changed = eval_int(s, e);
+		valueChanged = evalInt(s, e);
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT
 	case Context::FloatValue:
-		value_changed = eval_float(s, e);
+		valueChanged = evalFloat(s, e);
 		break;
 #endif
 
 #ifdef SERIALINDEX_STRING
 	case Context::StringValue:
-		value_changed = eval_string(s, e);
+		valueChanged = evalString(s, e);
 		break;
 #endif
 
 #ifdef SERIALINDEX_INT_ARRAY
 	case Context::IntArrayValue:
-		value_changed = eval_int_array(s, e);
+		valueChanged = evalIntArray(s, e);
 		break;
 
 	case Context::IntSliceArrayValue:
-		value_changed = eval_int_slice_array(s, e);
+		valueChanged = evalIntSliceArray(s, e);
 		break;
 #endif
 
 #ifdef SERIALINDEX_FLOAT_ARRAY
 	case Context::FloatArrayValue:
-		value_changed = eval_float_array(s, e);
+		valueChanged = evalFloatArray(s, e);
 		break;
 
 	case Context::FloatSliceArrayValue:
-		value_changed = eval_float_slice_array(s, e);
+		valueChanged = evalFloatSliceArray(s, e);
 		break;
 #endif
 
@@ -1155,13 +1155,13 @@ void SerialIndex::eval(char *s, char *e)
 		return;
 	}
 
-	if (value_changed && functions[ikey])
+	if (valueChanged && functions[ikey])
 		functions[ikey]();
 
-	reset_context();
+	resetContext();
 }
 
-bool SerialIndex::is_eol()
+bool SerialIndex::isEOL()
 {
 	size_t i;
 
@@ -1176,14 +1176,14 @@ bool SerialIndex::is_eol()
 	return true;
 }
 
-void SerialIndex::reset_context(void)
+void SerialIndex::resetContext(void)
 {
 	context = Context::Key;
 	ibuffer = 0;
 	ikey = SIZE_MAX;
 }
 
-size_t SerialIndex::find_key(const char *s) 
+size_t SerialIndex::findKey(const char *s) 
 {
 	size_t i;
 

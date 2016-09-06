@@ -47,6 +47,6 @@ static inline double strtods(const char *s, char *e, char **endptr)
 	return value;
 }
 
-bool is_slice_range_delimiter(const char *s);
+bool isSliceRangeDelimiter(const char *s);
 
 #endif
